@@ -12,30 +12,31 @@
    Theme Tokens
    ============================================================================ */
 @theme {
-  /* Primary palette — Deep indigo for trust/finance */
-  --color-primary-50: #f5f3ff;
-  --color-primary-100: #ede9fe;
-  --color-primary-200: #ddd6fe;
-  --color-primary-300: #c4b5fd;
-  --color-primary-400: #a78bfa;
-  --color-primary-500: #8b5cf6;
-  --color-primary-600: #7c3aed;
-  --color-primary-700: #6d28d9;
-  --color-primary-800: #5b21b6;
-  --color-primary-900: #4c1d95;
-  --color-primary-950: #2e1065;
+  /* Primary palette — Deep Emerald Green for institutional trust & wealth */
+  --color-primary-50: #e6fcf5;
+  --color-primary-100: #c1f7e6;
+  --color-primary-200: #87ecd1;
+  --color-primary-300: #4edebe;
+  --color-primary-400: #1bcaaa;
+  --color-primary-500: #0f9f85;
+  --color-primary-600: #0b7c67;
+  --color-primary-700: #096352;
+  --color-primary-800: #074b3f;
+  --color-primary-900: #05372e;
+  --color-primary-950: #021a16;
 
-  /* Accent — Warm gold for prosperity */
-  --color-accent-50: #fffbeb;
-  --color-accent-100: #fef3c7;
-  --color-accent-200: #fde68a;
-  --color-accent-300: #fcd34d;
-  --color-accent-400: #fbbf24;
+  /* Accent — Saffron Gold for rewards, prosperity and Mali recall */
+  --color-accent-50: #fefbeb;
+  --color-accent-100: #fdf3c7;
+  --color-accent-200: #fbe58a;
+  --color-accent-300: #fad04d;
+  --color-accent-400: #f9bb24;
   --color-accent-500: #f59e0b;
-  --color-accent-600: #d4a017;
-  --color-accent-700: #b45309;
-  --color-accent-800: #92400e;
-  --color-accent-900: #78350f;
+  --color-accent-600: #e08007;
+  --color-accent-700: #b45c09;
+  --color-accent-800: #92480e;
+  --color-accent-900: #783c0f;
+  --color-accent-950: #452003;
 
   /* Success — Emerald */
   --color-success-50: #ecfdf5;
@@ -67,16 +68,16 @@
   --color-warning-600: #d97706;
 
   /* Neutral surfaces */
-  --color-surface-50: #f8f9fb;
-  --color-surface-100: #f1f3f5;
-  --color-surface-200: #e9ecef;
-  --color-surface-300: #dee2e6;
-  --color-surface-400: #ced4da;
-  --color-surface-500: #adb5bd;
-  --color-surface-600: #6c757d;
-  --color-surface-700: #495057;
-  --color-surface-800: #343a40;
-  --color-surface-900: #212529;
+  --color-surface-50: #f8f9fa;
+  --color-surface-100: #f1f5f9;
+  --color-surface-200: #e2e8f0;
+  --color-surface-300: #cbd5e1;
+  --color-surface-400: #94a3b8;
+  --color-surface-500: #64748b;
+  --color-surface-600: #475569;
+  --color-surface-700: #334155;
+  --color-surface-800: #1e293b;
+  --color-surface-900: #0f172a;
 
   /* Dark mode surfaces */
   --color-dark-bg: #0f0f23;
@@ -91,8 +92,8 @@
   --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
   --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.04);
   --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.08), 0 8px 10px -6px rgb(0 0 0 / 0.04);
-  --shadow-glow: 0 0 20px rgb(124 58 237 / 0.3);
-  --shadow-glow-gold: 0 0 20px rgb(212 160 23 / 0.3);
+  --shadow-glow: 0 0 20px rgb(11 124 103 / 0.3);
+  --shadow-glow-gold: 0 0 20px rgb(245 158 11 / 0.3);
 
   /* Border radius */
   --radius-sm: 0.5rem;
@@ -131,7 +132,7 @@ html {
 
 body {
   background-color: var(--color-surface-50);
-  color: var(--color-surface-900);
+  color: var(--color-surface-800);
   min-height: 100vh;
   transition: background-color var(--transition-normal), color var(--transition-normal);
 }
