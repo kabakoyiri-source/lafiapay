@@ -130,7 +130,7 @@ export default function MerchantDashboard() {
             value={commercant?.qr_code_id || 'LAFIAPAY-MERCHANT'}
             size={180}
             level="H"
-            fgColor="#4C1D95"
+            fgColor="var(--color-primary-600)"
             bgColor="white"
           />
         </div>
