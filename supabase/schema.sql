@@ -23,7 +23,7 @@ create extension if not exists "uuid-ossp";
 -- 1. Profiles (extending auth.users)
 create table public.profiles (
     id uuid references auth.users on delete cascade primary key,
-    role text not null check (role in ('client', 'commercant', 'admin')),
+    role text not null check (role in ('client', 'commercant', 'admin', 'agent')),
     nom text not null,
     telephone text not null unique,
     pin_hash text not null, -- 4-digit PIN representation
@@ -54,12 +54,17 @@ create table public.comptes (
 -- 4. Transactions Ledger
 create table public.transactions (
     id uuid default gen_random_uuid() primary key,
-    type text not null check (type in ('depot', 'paiement')),
+    type text not null check (type in ('depot', 'paiement', 'transfert')),
     client_id uuid references public.profiles on delete restrict not null,
-    commercant_id uuid references public.profiles on delete restrict, -- Null for mobile money deposits
-    montant numeric(12, 2) not null check (montant > 0.00),
+    commercant_id uuid references public.profiles on delete restrict, -- Null for mobile money deposits & P2P transfers
+    destinataire_id uuid references public.profiles on delete restrict, -- Null for non-P2P transfers
+    agent_id uuid references public.profiles on delete restrict, -- Null for non-agent deposits
+    montant numeric(12, 2) not null check (montant > 0.00), -- Represents the gross amount for payments and net amount for P2P transfers
+    montant_brut numeric(12, 2) not null check (montant_brut > 0.00),
+    montant_net numeric(12, 2) not null check (montant_net > 0.00),
+    frais numeric(12, 2) not null default 0.00 check (frais >= 0.00),
     statut text not null default 'en_attente' check (statut in ('reussie', 'echouee', 'en_attente')),
-    operateur_mobile_money text check (operateur_mobile_money in ('orange_money', 'moov_money', 'wave')), -- Null for client-merchant payments
+    operateur_mobile_money text check (operateur_mobile_money in ('orange_money', 'moov_money', 'wave')), -- Null for client-merchant payments and P2P transfers
     reference text not null unique,
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
@@ -156,12 +161,12 @@ create policy "Allow admins full access on accounts" on public.comptes
 -- Policies for Transactions
 create policy "Allow users to read their own client transactions" on public.transactions
     for select using (
-        auth.uid() = client_id or auth.uid() = commercant_id
+        auth.uid() = client_id or auth.uid() = commercant_id or auth.uid() = destinataire_id or auth.uid() = agent_id
     );
 
-create policy "Allow clients to create deposits and payments" on public.transactions
+create policy "Allow clients and agents to create transactions" on public.transactions
     for insert with check (
-        auth.uid() = client_id
+        auth.uid() = client_id or auth.uid() = agent_id
     );
 
 create policy "Allow admins complete transaction management" on public.transactions

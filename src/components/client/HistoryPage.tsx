@@ -31,7 +31,9 @@ export default function HistoryPage() {
         const s = search.toLowerCase();
         return (txn.commercant_boutique?.toLowerCase().includes(s) ||
           txn.reference.toLowerCase().includes(s) ||
-          txn.commercant_nom?.toLowerCase().includes(s));
+          txn.commercant_nom?.toLowerCase().includes(s) ||
+          txn.destinataire_nom?.toLowerCase().includes(s) ||
+          txn.client_nom?.toLowerCase().includes(s));
       }
       return true;
     });
@@ -57,16 +59,18 @@ export default function HistoryPage() {
       </div>
 
       {/* Filter tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', overflowX: 'auto', paddingBottom: '0.25rem' }}>
         {[
           { value: 'all', label: 'Tout' },
           { value: 'depot', label: 'Dépôts' },
           { value: 'paiement', label: 'Paiements' },
+          { value: 'transfert', label: 'Transferts' },
         ].map(({ value, label }) => (
           <button
             key={value}
             className={`btn btn-sm ${typeFilter === value ? 'btn-primary' : 'btn-secondary'}`}
             onClick={() => setTypeFilter(value as TransactionType | 'all')}
+            style={{ flexShrink: 0 }}
           >
             {label}
           </button>
@@ -91,7 +95,51 @@ export default function HistoryPage() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {filtered.map((txn, i) => {
             const isDeposit = txn.type === 'depot';
+            const isTransfer = txn.type === 'transfert';
+            const isReceiver = isTransfer && txn.destinataire_id === profile?.id;
+            
             const cat = txn.commercant_categorie || 'autre';
+            const catInfo = CATEGORY_INFO[cat];
+
+            let displayName = '';
+            let subtitle = '';
+            let iconContent = null;
+            let amountPrefix = '';
+            let amountValue = 0;
+            let amountColor = '';
+
+            if (isDeposit) {
+              displayName = 'Dépôt physique';
+              subtitle = 'Via Agent';
+              iconContent = <ArrowDownLeft size={20} style={{ color: 'var(--color-success-600)' }} />;
+              amountPrefix = '+';
+              amountValue = txn.montant;
+              amountColor = 'var(--color-success-600)';
+            } else if (isTransfer) {
+              if (isReceiver) {
+                displayName = 'Transfert reçu';
+                subtitle = `de ${txn.client_nom || 'Client'}`;
+                iconContent = <ArrowDownLeft size={20} style={{ color: 'var(--color-success-600)' }} />;
+                amountPrefix = '+';
+                amountValue = txn.montant_net;
+                amountColor = 'var(--color-success-600)';
+              } else {
+                displayName = 'Transfert envoyé';
+                subtitle = `à ${txn.destinataire_nom || 'Client'}`;
+                iconContent = <ArrowUpRight size={20} style={{ color: 'var(--color-error-600)' }} />;
+                amountPrefix = '-';
+                amountValue = txn.montant_brut;
+                amountColor = 'inherit';
+              }
+            } else {
+              displayName = txn.commercant_boutique || 'Paiement';
+              subtitle = catInfo?.label || 'Services';
+              iconContent = <span>{catInfo?.emoji || '🛒'}</span>;
+              amountPrefix = '-';
+              amountValue = txn.montant;
+              amountColor = 'inherit';
+            }
+
             return (
               <motion.div
                 key={txn.id}
@@ -106,25 +154,28 @@ export default function HistoryPage() {
                 }}
               >
                 <div className="category-icon" style={{
-                  background: isDeposit ? 'var(--color-success-100)' : `${CATEGORY_INFO[cat].color}15`,
+                  background: isDeposit || isReceiver ? 'var(--color-success-100)' : (isTransfer ? 'var(--color-error-100)' : `${catInfo?.color || '#cbd5e1'}15`),
+                  width: 40, height: 40, borderRadius: '50%',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  flexShrink: 0,
                 }}>
-                  {isDeposit ? <ArrowDownLeft size={20} style={{ color: 'var(--color-success-600)' }} /> :
-                    <span>{CATEGORY_INFO[cat].emoji}</span>}
+                  {iconContent}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 600, fontSize: '0.875rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {isDeposit ? 'Dépôt' : txn.commercant_boutique || 'Paiement'}
+                    {displayName}
                   </div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                     {new Date(txn.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {` · ${subtitle}`}
                   </div>
                 </div>
                 <div>
                   <div className="tabular-nums" style={{
                     fontWeight: 700, fontSize: '0.875rem', textAlign: 'right',
-                    color: isDeposit ? 'var(--color-success-600)' : 'inherit',
+                    color: amountColor,
                   }}>
-                    {isDeposit ? '+' : '-'}{formatFCFA(txn.montant)}
+                    {amountPrefix}{formatFCFA(amountValue)}
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <span className={`badge badge-${txn.statut === 'reussie' ? 'success' : txn.statut === 'echouee' ? 'error' : 'warning'}`}
@@ -167,9 +218,9 @@ export default function HistoryPage() {
               <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <div className="amount-display" style={{
                   fontSize: '2rem',
-                  color: selectedTxn.type === 'depot' ? 'var(--color-success-600)' : 'var(--color-primary-700)',
+                  color: selectedTxn.type === 'depot' || (selectedTxn.type === 'transfert' && selectedTxn.destinataire_id === profile?.id) ? 'var(--color-success-600)' : 'var(--color-surface-900)',
                 }}>
-                  {selectedTxn.type === 'depot' ? '+' : '-'}{formatFCFA(selectedTxn.montant)}
+                  {selectedTxn.type === 'depot' || (selectedTxn.type === 'transfert' && selectedTxn.destinataire_id === profile?.id) ? '+' : '-'}{formatFCFA(selectedTxn.type === 'transfert' ? (selectedTxn.destinataire_id === profile?.id ? selectedTxn.montant_net : selectedTxn.montant_brut) : selectedTxn.montant)}
                 </div>
                 <span className={`badge badge-${selectedTxn.statut === 'reussie' ? 'success' : selectedTxn.statut === 'echouee' ? 'error' : 'warning'}`}>
                   {selectedTxn.statut === 'reussie' ? '✓ Réussie' : selectedTxn.statut === 'echouee' ? '✗ Échouée' : '⏳ En attente'}
@@ -177,18 +228,43 @@ export default function HistoryPage() {
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.875rem' }}>
-                {[
-                  ['Type', selectedTxn.type === 'depot' ? 'Dépôt' : 'Paiement'],
-                  ['Référence', selectedTxn.reference],
-                  ['Date', formatDate(selectedTxn.created_at)],
-                  selectedTxn.commercant_boutique ? ['Commerçant', selectedTxn.commercant_boutique] : null,
-                  selectedTxn.operateur_mobile_money ? ['Opérateur', selectedTxn.operateur_mobile_money.replace('_', ' ')] : null,
-                ].filter((item): item is [string, string] => item !== null).map(([label, value]) => (
-                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--color-surface-100)' }}>
-                    <span style={{ color: 'var(--color-surface-500)' }}>{label}</span>
-                    <span style={{ fontWeight: 600 }}>{value}</span>
-                  </div>
-                ))}
+                {(() => {
+                  const items: [string, string][] = [
+                    ['Référence', selectedTxn.reference],
+                    ['Date', formatDate(selectedTxn.created_at)],
+                  ];
+                  
+                  if (selectedTxn.type === 'depot') {
+                    items.unshift(['Type', 'Dépôt physique']);
+                    items.push(['Canal', 'Agent agréé']);
+                  } else if (selectedTxn.type === 'transfert') {
+                    const isSender = selectedTxn.client_id === profile?.id;
+                    items.unshift(['Type', isSender ? 'Transfert envoyé' : 'Transfert reçu']);
+                    if (isSender) {
+                      items.push(['Destinataire', selectedTxn.destinataire_nom || 'Client']);
+                      items.push(['Montant transféré', formatFCFA(selectedTxn.montant_net)]);
+                      items.push(['Frais de service (1%)', formatFCFA(selectedTxn.frais)]);
+                      items.push(['Total débité', formatFCFA(selectedTxn.montant_brut)]);
+                    } else {
+                      items.push(['Expéditeur', selectedTxn.client_nom || 'Client']);
+                      items.push(['Montant reçu', formatFCFA(selectedTxn.montant_net)]);
+                      items.push(['Frais de transfert', '0 FCFA']);
+                    }
+                  } else {
+                    items.unshift(['Type', 'Paiement']);
+                    items.push(['Commerçant', selectedTxn.commercant_boutique || 'Boutique']);
+                    items.push(['Catégorie', selectedTxn.commercant_categorie ? CATEGORY_INFO[selectedTxn.commercant_categorie].label : 'Commerce']);
+                    items.push(['Montant débité', formatFCFA(selectedTxn.montant)]);
+                    items.push(['Frais de paiement', '0 FCFA (Frais commerçant)']);
+                  }
+                  
+                  return items.map(([label, value]) => (
+                    <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.5rem 0', borderBottom: '1px solid var(--color-surface-100)' }}>
+                      <span style={{ color: 'var(--color-surface-500)' }}>{label}</span>
+                      <span style={{ fontWeight: 600 }}>{value}</span>
+                    </div>
+                  ));
+                })()}
               </div>
 
               <button

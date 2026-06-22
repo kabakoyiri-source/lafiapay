@@ -4,13 +4,13 @@
 // ============================================================================
 
 /** User roles in the platform */
-export type UserRole = 'client' | 'commercant' | 'admin';
+export type UserRole = 'client' | 'commercant' | 'admin' | 'agent';
 
 /** Account status */
 export type AccountStatus = 'actif' | 'suspendu';
 
 /** Transaction types */
-export type TransactionType = 'depot' | 'paiement';
+export type TransactionType = 'depot' | 'paiement' | 'transfert';
 
 /** Transaction status */
 export type TransactionStatus = 'reussie' | 'echouee' | 'en_attente';
@@ -78,7 +78,12 @@ export interface Transaction {
   type: TransactionType;
   client_id: string;
   commercant_id: string | null;
-  montant: number;
+  destinataire_id?: string | null;
+  agent_id?: string | null;
+  montant: number; // Note: Represents the gross amount for payments and net amount for P2P transfers
+  montant_brut: number;
+  montant_net: number;
+  frais: number;
   statut: TransactionStatus;
   operateur_mobile_money: MobileMoneyOperator | null;
   reference: string;
@@ -88,6 +93,8 @@ export interface Transaction {
   commercant_nom?: string;
   commercant_boutique?: string;
   commercant_categorie?: CommerceCategory;
+  destinataire_nom?: string;
+  agent_nom?: string;
 }
 
 /** Dispute / litigation record */

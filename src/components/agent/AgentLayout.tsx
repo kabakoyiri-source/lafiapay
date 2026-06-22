@@ -1,26 +1,25 @@
 // ============================================================================
-// LafiaPay — Client Layout
-// Mobile-first wrapper with bottom navigation and phone frame on desktop
+// LafiaPay — Agent Layout
+// Mobile-first wrapper for physical agents with bottom navigation
 // ============================================================================
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, QrCode, Clock, User, Send } from 'lucide-react';
+import { Home, PlusCircle, Clock, User } from 'lucide-react';
 
 const NAV_ITEMS = [
-  { path: '/client', icon: Home, label: 'Accueil' },
-  { path: '/client/pay', icon: QrCode, label: 'Payer' },
-  { path: '/client/transfer', icon: Send, label: 'Transfert' },
-  { path: '/client/history', icon: Clock, label: 'Historique' },
-  { path: '/client/profile', icon: User, label: 'Profil' },
+  { path: '/agent', icon: Home, label: 'Accueil' },
+  { path: '/agent/cashin', icon: PlusCircle, label: 'Nouveau Dépôt' },
+  { path: '/agent/history', icon: Clock, label: 'Historique' },
+  { path: '/agent/profile', icon: User, label: 'Profil' },
 ];
 
-export default function ClientLayout() {
+export default function AgentLayout() {
   const location = useLocation();
   const navigate = useNavigate();
 
   const isActive = (path: string) => {
-    if (path === '/client') return location.pathname === '/client';
+    if (path === '/agent') return location.pathname === '/agent';
     return location.pathname.startsWith(path);
   };
 
@@ -49,11 +48,20 @@ export default function ClientLayout() {
               key={path}
               className={`bottom-nav-item ${isActive(path) ? 'active' : ''}`}
               onClick={() => navigate(path)}
+              style={{
+                // Let's customize the active color for Agent (Safran Gold / primary emerald)
+                color: isActive(path) ? 'var(--color-primary-600)' : undefined,
+              }}
             >
-              <div className="nav-icon-bg">
+              <div className="nav-icon-bg" style={{
+                color: isActive(path) ? 'var(--color-primary-600)' : undefined,
+                background: isActive(path) ? 'rgba(15, 159, 133, 0.08)' : undefined,
+              }}>
                 <Icon size={22} />
               </div>
-              <span>{label}</span>
+              <span style={{
+                color: isActive(path) ? 'var(--color-primary-700)' : undefined,
+              }}>{label}</span>
             </button>
           ))}
         </nav>

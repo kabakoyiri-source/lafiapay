@@ -14,6 +14,7 @@ import ClientLayout from './components/client/ClientLayout';
 import ClientHome from './components/client/HomePage';
 import ClientRecharge from './components/client/RechargePage';
 import ClientPayment from './components/client/PaymentPage';
+import ClientTransfer from './components/client/TransferPage';
 import ClientHistory from './components/client/HistoryPage';
 import ClientProfile from './components/client/ProfilePage';
 
@@ -35,6 +36,13 @@ import AdminDisputes from './components/admin/DisputesPage';
 import AdminCompliance from './components/admin/CompliancePage';
 import AdminAuditLog from './components/admin/AuditLogPage';
 
+// Agent Space
+import AgentLayout from './components/agent/AgentLayout';
+import AgentDashboard from './components/agent/DashboardPage';
+import AgentCashIn from './components/agent/CashInPage';
+import AgentHistory from './components/agent/HistoryPage';
+import AgentProfile from './components/agent/ProfilePage';
+
 export default function App() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -48,6 +56,7 @@ export default function App() {
           client: '/client',
           commercant: '/merchant',
           admin: '/admin',
+          agent: '/agent',
         };
         navigate(routes[profile.role] || '/client', { replace: true });
       }
@@ -59,7 +68,7 @@ export default function App() {
       {/* Public Routes */}
       <Route path="/" element={
         user && profile ? (
-          <Navigate to={profile.role === 'admin' ? '/admin' : profile.role === 'commercant' ? '/merchant' : '/client'} replace />
+          <Navigate to={profile.role === 'admin' ? '/admin' : profile.role === 'commercant' ? '/merchant' : profile.role === 'agent' ? '/agent' : '/client'} replace />
         ) : (
           <LoginPage />
         )
@@ -74,6 +83,7 @@ export default function App() {
         <Route index element={<ClientHome />} />
         <Route path="recharge" element={<ClientRecharge />} />
         <Route path="pay" element={<ClientPayment />} />
+        <Route path="transfer" element={<ClientTransfer />} />
         <Route path="history" element={<ClientHistory />} />
         <Route path="profile" element={<ClientProfile />} />
       </Route>
@@ -104,6 +114,18 @@ export default function App() {
         <Route path="disputes" element={<AdminDisputes />} />
         <Route path="compliance" element={<AdminCompliance />} />
         <Route path="audit" element={<AdminAuditLog />} />
+      </Route>
+
+      {/* Agent Space */}
+      <Route path="/agent" element={
+        <ProtectedRoute requiredRole="agent">
+          <AgentLayout />
+        </ProtectedRoute>
+      }>
+        <Route index element={<AgentDashboard />} />
+        <Route path="cashin" element={<AgentCashIn />} />
+        <Route path="history" element={<AgentHistory />} />
+        <Route path="profile" element={<AgentProfile />} />
       </Route>
 
       {/* Catch-all */}

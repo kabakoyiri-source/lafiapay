@@ -61,6 +61,7 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
       client: '/client',
       commercant: '/merchant',
       admin: '/admin',
+      agent: '/agent',
     };
     return <Navigate to={roleRoutes[profile.role]} replace />;
   }

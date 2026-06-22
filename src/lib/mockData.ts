@@ -34,6 +34,7 @@ const uuid = (): string => {
 export const DEMO_CLIENT_ID = 'demo-client-001';
 export const DEMO_MERCHANT_ID = 'demo-merchant-001';
 export const DEMO_ADMIN_ID = 'demo-admin-001';
+export const DEMO_AGENT_ID = 'demo-agent-001';
 
 // ============================================================================
 // Profiles — Clients
@@ -79,6 +80,13 @@ const merchantProfiles: Profile[] = [
 // ============================================================================
 const adminProfiles: Profile[] = [
   { id: DEMO_ADMIN_ID, role: 'admin', nom: 'Admin LafiaPay', telephone: '+223 70 00 00 00', pin_hash: '0000', kyc_niveau: 3, statut: 'actif', created_at: '2026-01-01T00:00:00Z' },
+];
+
+// ============================================================================
+// Profiles — Agent
+// ============================================================================
+const agentProfiles: Profile[] = [
+  { id: DEMO_AGENT_ID, role: 'agent', nom: 'Modibo Keïta', telephone: '+223 70 00 00 03', pin_hash: '1234', kyc_niveau: 3, statut: 'actif', created_at: '2026-01-10T09:00:00Z' },
 ];
 
 // ============================================================================
@@ -133,6 +141,10 @@ const merchantBalances: Record<string, number> = {
   'mc-010': 95600,
 };
 
+const agentBalances: Record<string, number> = {
+  [DEMO_AGENT_ID]: 500000,
+};
+
 const allComptes: Compte[] = [
   ...Object.entries(clientBalances).map(([id, solde]) => ({
     id: `compte-${id}`,
@@ -146,12 +158,17 @@ const allComptes: Compte[] = [
     solde,
     updated_at: new Date().toISOString(),
   })),
+  ...Object.entries(agentBalances).map(([id, solde]) => ({
+    id: `compte-${id}`,
+    profile_id: id,
+    solde,
+    updated_at: new Date().toISOString(),
+  })),
 ];
 
 // ============================================================================
 // Generate realistic transactions over 30 days
 // ============================================================================
-const operators: MobileMoneyOperator[] = ['orange_money', 'moov_money', 'wave'];
 const statuses: TransactionStatus[] = ['reussie', 'reussie', 'reussie', 'reussie', 'reussie', 'echouee', 'en_attente'];
 const depotAmounts = [1000, 2000, 2500, 5000, 5000, 10000, 10000, 15000, 20000, 25000, 50000];
 const paiementAmounts = [150, 250, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 5000, 7500, 10000, 15000];
@@ -178,30 +195,72 @@ function generateTransactions(): Transaction[] {
     date.setDate(date.getDate() - daysAgo);
     date.setHours(hour, minute, Math.floor(Math.random() * 60));
 
-    const type: TransactionType = Math.random() < 0.35 ? 'depot' : 'paiement';
+    // Dépôt (20%), Transfert (25%), Paiement (55%)
+    const rand = Math.random();
+    const type: TransactionType = rand < 0.20 ? 'depot' : rand < 0.45 ? 'transfert' : 'paiement';
+    
     const clientId = randomPick(allClientIds);
     const merchantId = type === 'paiement' ? randomPick(allMerchantIds) : null;
-    const montant = type === 'depot' ? randomPick(depotAmounts) : randomPick(paiementAmounts);
+    let destinataireId: string | null = null;
+
+    let rawAmount = 0;
+    let frais = 0;
+    let montantBrut = 0;
+    let montantNet = 0;
+
+    if (type === 'depot') {
+      rawAmount = randomPick(depotAmounts);
+      frais = 0;
+      montantBrut = rawAmount;
+      montantNet = rawAmount;
+    } else if (type === 'paiement') {
+      rawAmount = randomPick(paiementAmounts);
+      frais = Math.round(rawAmount * 0.005); // 0.5% fee on merchant
+      montantBrut = rawAmount;
+      montantNet = rawAmount - frais;
+    } else {
+      // transfert
+      rawAmount = randomPick(paiementAmounts);
+      frais = Math.round(rawAmount * 0.01); // 1% fee on sender
+      montantBrut = rawAmount + frais;
+      montantNet = rawAmount;
+
+      // Pick a different client as recipient
+      let rec = randomPick(allClientIds);
+      while (rec === clientId) {
+        rec = randomPick(allClientIds);
+      }
+      destinataireId = rec;
+    }
+
     const statut = randomPick(statuses);
 
     const clientProfile = clientProfiles.find(p => p.id === clientId);
     const merchantProfile = merchantId ? merchantProfiles.find(p => p.id === merchantId) : null;
     const merchantDetail = merchantId ? merchantDetails.find(d => d.id === merchantId) : null;
+    const destinataireProfile = destinataireId ? clientProfiles.find(p => p.id === destinataireId) : null;
 
     txns.push({
       id: uuid(),
       type,
       client_id: clientId,
       commercant_id: merchantId,
-      montant,
+      destinataire_id: destinataireId,
+      agent_id: type === 'depot' ? DEMO_AGENT_ID : null,
+      montant: rawAmount,
+      montant_brut: montantBrut,
+      montant_net: montantNet,
+      frais,
       statut,
-      operateur_mobile_money: type === 'depot' ? randomPick(operators) : null,
+      operateur_mobile_money: null, // Deprecated: recharges are agent physical cash deposits
       reference: `LP-${String.fromCharCode(65 + Math.floor(Math.random() * 26))}${Math.floor(Math.random() * 10000000).toString().padStart(7, '0')}`,
       created_at: date.toISOString(),
       client_nom: clientProfile?.nom,
       commercant_nom: merchantProfile?.nom,
       commercant_boutique: merchantDetail?.nom_boutique,
       commercant_categorie: merchantDetail?.categorie,
+      destinataire_nom: destinataireProfile?.nom,
+      agent_nom: type === 'depot' ? 'Modibo Keïta' : undefined,
     });
   }
 
@@ -363,7 +422,7 @@ export interface MockDataStore {
 }
 
 export const mockStore: MockDataStore = {
-  profiles: [...clientProfiles, ...merchantProfiles, ...adminProfiles],
+  profiles: [...clientProfiles, ...merchantProfiles, ...adminProfiles, ...agentProfiles],
   commercants: [...merchantDetails],
   comptes: [...allComptes],
   transactions: [...allTransactions],
@@ -408,7 +467,7 @@ export const mockStore: MockDataStore = {
   },
 
   getTransactionsForUser(userId: string): Transaction[] {
-    return this.transactions.filter(t => t.client_id === userId);
+    return this.transactions.filter(t => t.client_id === userId || t.destinataire_id === userId || t.agent_id === userId);
   },
 
   getTransactionsForMerchant(merchantId: string): Transaction[] {

@@ -32,7 +32,18 @@ export default function ReconciliationPage() {
       })
       .reduce((sum, c) => sum + c.solde, 0);
 
-    const totalVirtualCirculation = totalClientBalance + totalMerchantBalance;
+    const totalAgentBalance = mockStore.comptes
+      .filter(c => {
+        const p = mockStore.getProfile(c.profile_id);
+        return p?.role === 'agent';
+      })
+      .reduce((sum, c) => sum + c.solde, 0);
+
+    const totalPlatformRevenue = mockStore.transactions
+      .filter(t => t.statut === 'reussie')
+      .reduce((sum, t) => sum + (t.frais || 0), 0);
+
+    const totalVirtualCirculation = totalClientBalance + totalMerchantBalance + totalAgentBalance + totalPlatformRevenue;
 
     // Escrow Account (Cantonnement BCEAO)
     // Normally matched exactly. If hasDiscrepancy is true, we simulate a small difference of 15,000 FCFA.
@@ -43,11 +54,13 @@ export default function ReconciliationPage() {
     return {
       totalClientBalance,
       totalMerchantBalance,
+      totalAgentBalance,
+      totalPlatformRevenue,
       totalVirtualCirculation,
       escrowBalance,
       gap: escrowBalance - totalVirtualCirculation,
     };
-  }, [hasDiscrepancy, mockStore.comptes]);
+  }, [hasDiscrepancy, mockStore.comptes, mockStore.transactions]);
 
   // Steps to display in the scanning animation
   const STEPS = [
@@ -165,6 +178,14 @@ export default function ReconciliationPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
               <span style={{ color: 'var(--color-surface-500)' }}>Portefeuilles Commerçants</span>
               <span style={{ fontWeight: 600 }} className="tabular-nums">{formatFCFA(stats.totalMerchantBalance)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <span style={{ color: 'var(--color-surface-500)' }}>Portefeuilles Agents</span>
+              <span style={{ fontWeight: 600 }} className="tabular-nums">{formatFCFA(stats.totalAgentBalance)}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8125rem' }}>
+              <span style={{ color: 'var(--color-surface-500)' }}>Frais collectés LafiaPay</span>
+              <span style={{ fontWeight: 600 }} className="tabular-nums">{formatFCFA(stats.totalPlatformRevenue)}</span>
             </div>
           </div>
         </div>

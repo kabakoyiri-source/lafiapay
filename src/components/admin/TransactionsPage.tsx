@@ -38,7 +38,8 @@ export default function TransactionsPage() {
         t.reference.toLowerCase().includes(s) ||
         (t.client_nom && t.client_nom.toLowerCase().includes(s)) ||
         (t.commercant_boutique && t.commercant_boutique.toLowerCase().includes(s)) ||
-        (t.commercant_nom && t.commercant_nom.toLowerCase().includes(s));
+        (t.commercant_nom && t.commercant_nom.toLowerCase().includes(s)) ||
+        (t.destinataire_nom && t.destinataire_nom.toLowerCase().includes(s));
 
       return matchType && matchStatus && matchSearch;
     });
@@ -98,6 +99,7 @@ export default function TransactionsPage() {
             <option value="all">Tous les types</option>
             <option value="depot">Dépôts (Recharges)</option>
             <option value="paiement">Paiements Commerçants</option>
+            <option value="transfert">Transferts P2P</option>
           </select>
         </div>
 
@@ -138,10 +140,11 @@ export default function TransactionsPage() {
                 <th>Référence</th>
                 <th>Date & Heure</th>
                 <th>Type</th>
-                <th>Client</th>
+                <th>Client (Émetteur)</th>
                 <th>Destinataire</th>
-                <th>Montant</th>
-                <th>Moyen de Paiement</th>
+                <th>Montant Brut</th>
+                <th>Frais</th>
+                <th>Montant Net</th>
                 <th>Statut</th>
                 <th style={{ textAlign: 'right' }}>Actions</th>
               </tr>
@@ -149,13 +152,18 @@ export default function TransactionsPage() {
             <tbody>
               {paginatedTxns.length === 0 ? (
                 <tr>
-                  <td colSpan={9} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-surface-400)' }}>
+                  <td colSpan={10} style={{ textAlign: 'center', padding: '3rem', color: 'var(--color-surface-400)' }}>
                     Aucune transaction trouvée.
                   </td>
                 </tr>
               ) : (
                 paginatedTxns.map(txn => {
                   const isDepot = txn.type === 'depot';
+                  const isTransfer = txn.type === 'transfert';
+
+                  const typeBadgeColor = isDepot ? 'success' : isTransfer ? 'warning' : 'info';
+                  const typeLabel = isDepot ? 'Dépôt' : isTransfer ? 'Transfert P2P' : 'Paiement';
+
                   return (
                     <tr key={txn.id}>
                       <td style={{ fontWeight: 700, fontFamily: 'monospace' }}>{txn.reference}</td>
@@ -163,35 +171,28 @@ export default function TransactionsPage() {
                         {formatDate(txn.created_at)}
                       </td>
                       <td>
-                        <span className={`badge badge-${isDepot ? 'success' : 'info'}`}>
-                          {isDepot ? 'Dépôt' : 'Paiement'}
+                        <span className={`badge badge-${typeBadgeColor}`}>
+                          {typeLabel}
                         </span>
                       </td>
                       <td style={{ fontWeight: 600 }}>{txn.client_nom || 'Client Anonyme'}</td>
                       <td style={{ fontWeight: 600 }}>
                         {isDepot ? (
-                          <span style={{ color: 'var(--color-surface-400)', fontStyle: 'italic', fontWeight: 'normal' }}>Mon portefeuille</span>
+                          <span style={{ color: 'var(--color-surface-400)', fontStyle: 'italic', fontWeight: 'normal' }}>Portefeuille</span>
+                        ) : isTransfer ? (
+                          txn.destinataire_nom || 'Autre Client'
                         ) : (
                           txn.commercant_boutique || txn.commercant_nom || 'Commerce'
                         )}
                       </td>
                       <td className="tabular-nums" style={{ fontWeight: 700, color: isDepot ? 'var(--color-success-600)' : 'inherit' }}>
-                        {isDepot ? '+' : '-'}{formatFCFA(txn.montant)}
+                        {isDepot ? '+' : '-'}{formatFCFA(txn.montant_brut || txn.montant)}
                       </td>
-                      <td>
-                        {isDepot && txn.operateur_mobile_money ? (
-                          <span
-                            className="badge"
-                            style={{
-                              backgroundColor: OPERATOR_INFO[txn.operateur_mobile_money]?.bgColor + '15',
-                              color: OPERATOR_INFO[txn.operateur_mobile_money]?.bgColor,
-                            }}
-                          >
-                            {OPERATOR_INFO[txn.operateur_mobile_money]?.label}
-                          </span>
-                        ) : (
-                          <span className="badge badge-neutral">Portefeuille Closed-Loop</span>
-                        )}
+                      <td className="tabular-nums" style={{ color: txn.frais > 0 ? 'var(--color-accent-700)' : 'inherit' }}>
+                        {txn.frais > 0 ? formatFCFA(txn.frais) : '—'}
+                      </td>
+                      <td className="tabular-nums" style={{ fontWeight: 750, color: isDepot ? 'var(--color-success-600)' : 'inherit' }}>
+                        {isDepot ? '+' : '-'}{formatFCFA(txn.montant_net || txn.montant)}
                       </td>
                       <td>
                         <span className={`badge badge-${txn.statut === 'reussie' ? 'success' : txn.statut === 'echouee' ? 'error' : 'warning'}`}>
@@ -269,8 +270,8 @@ export default function TransactionsPage() {
 
               {/* Amount display */}
               <div style={{ textAlign: 'center', padding: '1.25rem', backgroundColor: 'var(--color-surface-50)', borderRadius: 'var(--radius-xl)' }} className="dark:bg-dark-surface">
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: selectedTxn.type === 'depot' ? 'var(--color-success-600)' : 'inherit' }} className="tabular-nums">
-                  {selectedTxn.type === 'depot' ? '+' : '-'}{formatFCFA(selectedTxn.montant)}
+                <div style={{ fontSize: '2.5rem', fontWeight: 800, color: selectedTxn.type === 'depot' ? 'var(--color-success-600)' : 'inherit' }} className="tabular-nums">
+                  {selectedTxn.type === 'depot' ? '+' : '-'}{formatFCFA(selectedTxn.type === 'transfert' ? selectedTxn.montant_net : selectedTxn.montant)}
                 </div>
                 <span className={`badge badge-${selectedTxn.statut === 'reussie' ? 'success' : selectedTxn.statut === 'echouee' ? 'error' : 'warning'}`} style={{ marginTop: '0.5rem' }}>
                   {selectedTxn.statut === 'reussie' ? 'Transaction Réussie' : selectedTxn.statut === 'echouee' ? 'Transaction Échouée' : 'Transaction En attente'}
@@ -289,13 +290,20 @@ export default function TransactionsPage() {
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
                   <span style={{ color: 'var(--color-surface-500)' }}>Type de transaction</span>
-                  <span style={{ fontWeight: 600 }}>{selectedTxn.type === 'depot' ? 'Dépôt / Recharge' : 'Paiement Commerçant'}</span>
+                  <span style={{ fontWeight: 600 }}>{selectedTxn.type === 'depot' ? 'Dépôt / Recharge (Agent)' : selectedTxn.type === 'transfert' ? 'Transfert P2P' : 'Paiement Commerçant'}</span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
                   <span style={{ color: 'var(--color-surface-500)' }}>Client Émetteur</span>
                   <span style={{ fontWeight: 600 }}>{selectedTxn.client_nom || 'Client ID: ' + selectedTxn.client_id}</span>
                 </div>
                 
+                {selectedTxn.type === 'transfert' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
+                    <span style={{ color: 'var(--color-surface-500)' }}>Client Récepteur</span>
+                    <span style={{ fontWeight: 600 }}>{selectedTxn.destinataire_nom || 'Destinataire ID: ' + selectedTxn.destinataire_id}</span>
+                  </div>
+                )}
+
                 {selectedTxn.type === 'paiement' && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
                     <span style={{ color: 'var(--color-surface-500)' }}>Commerce Destinataire</span>
@@ -303,12 +311,20 @@ export default function TransactionsPage() {
                   </div>
                 )}
 
-                {selectedTxn.operateur_mobile_money && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
-                    <span style={{ color: 'var(--color-surface-500)' }}>Opérateur de dépôt</span>
-                    <span style={{ fontWeight: 600 }}>{OPERATOR_INFO[selectedTxn.operateur_mobile_money]?.label}</span>
-                  </div>
-                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
+                  <span style={{ color: 'var(--color-surface-500)' }}>Montant Brut</span>
+                  <span style={{ fontWeight: 600 }}>{formatFCFA(selectedTxn.montant_brut || selectedTxn.montant)}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
+                  <span style={{ color: 'var(--color-surface-500)' }}>Frais collectés</span>
+                  <span style={{ fontWeight: 600, color: 'var(--color-accent-700)' }}>{formatFCFA(selectedTxn.frais || 0)}</span>
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '0.5rem', borderBottom: '1px solid var(--color-surface-150)' }} className="dark:border-dark-border">
+                  <span style={{ color: 'var(--color-surface-500)' }}>Montant Net</span>
+                  <span style={{ fontWeight: 700, color: 'var(--color-primary-700)' }}>{formatFCFA(selectedTxn.montant_net || selectedTxn.montant)}</span>
+                </div>
               </div>
 
               <div style={{ display: 'flex', gap: '0.75rem', marginTop: '0.5rem' }}>

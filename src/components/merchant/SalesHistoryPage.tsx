@@ -39,13 +39,18 @@ export default function SalesHistoryPage() {
     });
   }, [allTxns, period, search]);
 
-  const totalAmount = filtered.reduce((s, t) => s + t.montant, 0);
+  const totalNet = filtered.reduce((s, t) => s + (t.montant_net !== undefined ? t.montant_net : t.montant - Math.round(t.montant * 0.005)), 0);
+  const totalGross = filtered.reduce((s, t) => s + (t.montant_brut || t.montant), 0);
+  const totalFrais = filtered.reduce((s, t) => s + (t.frais || Math.round(t.montant * 0.005)), 0);
 
   const exportCSV = () => {
-    const header = 'Date,Client,Montant,Référence\n';
-    const rows = filtered.map(t =>
-      `${new Date(t.created_at).toLocaleString('fr-FR')},${t.client_nom || 'N/A'},${t.montant},${t.reference}`
-    ).join('\n');
+    const header = 'Date,Client,Montant Brut,Frais (0.5%),Montant Net,Référence\n';
+    const rows = filtered.map(t => {
+      const brut = t.montant_brut || t.montant;
+      const commission = t.frais || Math.round(t.montant * 0.005);
+      const net = t.montant_net !== undefined ? t.montant_net : t.montant - commission;
+      return `${new Date(t.created_at).toLocaleString('fr-FR')},${t.client_nom || 'N/A'},${brut},${commission},${net},${t.reference}`;
+    }).join('\n');
     const blob = new Blob([header + rows], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -88,10 +93,16 @@ export default function SalesHistoryPage() {
       </div>
 
       {/* Summary */}
-      <div className="card gradient-primary" style={{ padding: '1rem', color: 'white', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div>
-          <div style={{ fontSize: '0.75rem', opacity: 0.8 }}>Total ({filtered.length} ventes)</div>
-          <div className="amount-display" style={{ fontSize: '1.5rem' }}>{formatFCFA(totalAmount)}</div>
+      <div className="card gradient-primary" style={{ padding: '1.25rem', color: 'white', marginBottom: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '0.5rem', alignItems: 'center' }}>
+          <div>
+            <div style={{ fontSize: '0.75rem', opacity: 0.85 }}>Chiffre d'Affaires Net ({filtered.length} ventes)</div>
+            <div className="amount-display" style={{ fontSize: '1.5rem', fontWeight: 800 }}>{formatFCFA(totalNet)}</div>
+          </div>
+          <div style={{ textAlign: 'right', fontSize: '0.75rem', opacity: 0.9 }}>
+            <div>Volume Brut : <strong>{formatFCFA(totalGross)}</strong></div>
+            <div style={{ marginTop: '0.25rem' }}>Frais (0.5%) : <strong>{formatFCFA(totalFrais)}</strong></div>
+          </div>
         </div>
       </div>
 
@@ -117,10 +128,11 @@ export default function SalesHistoryPage() {
                 <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{txn.client_nom || 'Client'}</div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>
                   {new Date(txn.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                  {` · Brut: ${formatFCFA(txn.montant_brut || txn.montant)} · Commission: ${formatFCFA(txn.frais || Math.round(txn.montant * 0.005))}`}
                 </div>
               </div>
-              <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--color-success-600)' }}>
-                +{formatFCFA(txn.montant)}
+              <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--color-success-600)', fontSize: '0.9375rem' }}>
+                +{formatFCFA(txn.montant_net !== undefined ? txn.montant_net : txn.montant - Math.round(txn.montant * 0.005))}
               </span>
             </motion.div>
           ))}

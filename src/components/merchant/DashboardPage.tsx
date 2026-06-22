@@ -44,11 +44,11 @@ export default function MerchantDashboard() {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
 
   const revenueToday = allTxns.filter(t => new Date(t.created_at) >= todayStart && t.statut === 'reussie')
-    .reduce((s, t) => s + t.montant, 0);
+    .reduce((s, t) => s + (t.montant_net !== undefined ? t.montant_net : t.montant - Math.round(t.montant * 0.005)), 0);
   const revenueWeek = allTxns.filter(t => new Date(t.created_at) >= weekStart && t.statut === 'reussie')
-    .reduce((s, t) => s + t.montant, 0);
+    .reduce((s, t) => s + (t.montant_net !== undefined ? t.montant_net : t.montant - Math.round(t.montant * 0.005)), 0);
   const revenueMonth = allTxns.filter(t => new Date(t.created_at) >= monthStart && t.statut === 'reussie')
-    .reduce((s, t) => s + t.montant, 0);
+    .reduce((s, t) => s + (t.montant_net !== undefined ? t.montant_net : t.montant - Math.round(t.montant * 0.005)), 0);
 
   // Chart data (last 7 days)
   const chartData = useMemo(() => {
@@ -65,7 +65,7 @@ export default function MerchantDashboard() {
           const td = new Date(t.created_at);
           return td >= dayStart && td < dayEnd && t.statut === 'reussie';
         })
-        .reduce((s, t) => s + t.montant, 0);
+        .reduce((s, t) => s + (t.montant_net !== undefined ? t.montant_net : t.montant - Math.round(t.montant * 0.005)), 0);
       days.push({ date: dayStr, montant: total });
     }
     return days;
@@ -232,10 +232,11 @@ export default function MerchantDashboard() {
                   <div style={{ fontWeight: 600, fontSize: '0.875rem' }}>{txn.client_nom || 'Client'}</div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>
                     {new Date(txn.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {` · Brut: ${formatFCFA(txn.montant_brut || txn.montant)} · Commission: ${formatFCFA(txn.frais || Math.round(txn.montant * 0.005))}`}
                   </div>
                 </div>
-                <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--color-success-600)', fontSize: '0.9375rem' }}>
-                  +{formatFCFA(txn.montant)}
+                <span className="tabular-nums" style={{ fontWeight: 700, color: 'var(--color-success-600)', fontSize: '0.9375rem' }} title="Net reçu">
+                  +{formatFCFA(txn.montant_net !== undefined ? txn.montant_net : txn.montant - Math.round(txn.montant * 0.005))}
                 </span>
               </motion.div>
             ))}

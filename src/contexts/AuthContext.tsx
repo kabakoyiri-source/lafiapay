@@ -5,7 +5,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import { IS_MOCK_MODE } from '../lib/supabase';
-import { mockStore, DEMO_CLIENT_ID, DEMO_MERCHANT_ID, DEMO_ADMIN_ID } from '../lib/mockData';
+import { mockStore, DEMO_CLIENT_ID, DEMO_MERCHANT_ID, DEMO_ADMIN_ID, DEMO_AGENT_ID } from '../lib/mockData';
 import type { Profile, Compte, Commercant, UserRole, AuthState } from '../types';
 
 interface AuthContextType extends AuthState {
@@ -95,6 +95,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       if (role === 'admin' || identifier === 'admin@demo.com') {
         return loginMockUser(DEMO_ADMIN_ID);
+      }
+      if (role === 'agent' || identifier === '+223 70 00 00 03') {
+        return loginMockUser(DEMO_AGENT_ID);
       }
       // Try finding by phone
       const profile = mockStore.profiles.find(

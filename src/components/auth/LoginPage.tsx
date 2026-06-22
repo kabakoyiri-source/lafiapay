@@ -6,7 +6,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Phone, Lock, Mail, Eye, EyeOff, Wallet, Shield, Zap, User, Store, Settings } from 'lucide-react';
+import { Phone, Lock, Mail, Eye, EyeOff, Wallet, Shield, Zap, User, Store, Settings, UserCheck } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import type { UserRole } from '../../types';
@@ -327,6 +327,7 @@ export default function LoginPage() {
             {[
               { role: 'client' as UserRole, icon: User, label: 'Client Demo', sub: 'Amadou Diallo · 25 750 FCFA', color: 'var(--color-primary-600)' },
               { role: 'commercant' as UserRole, icon: Store, label: 'Commerçant Demo', sub: 'Épicerie Sogoniko · 185 000 FCFA', color: 'var(--color-success-600)' },
+              { role: 'agent' as UserRole, icon: UserCheck, label: 'Agent Demo', sub: 'Modibo Keïta · 500 000 FCFA', color: '#F59E0B' },
               { role: 'admin' as UserRole, icon: Settings, label: 'Admin Demo', sub: 'Tableau de bord complet', color: 'var(--color-accent-600)' },
             ].map(({ role, icon: Icon, label, sub, color }) => (
               <motion.button

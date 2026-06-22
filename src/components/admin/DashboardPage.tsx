@@ -32,17 +32,21 @@ export default function DashboardPage() {
     const successfulTxns = txns.filter(t => t.statut === 'reussie');
     const deposits = successfulTxns.filter(t => t.type === 'depot');
     const payments = successfulTxns.filter(t => t.type === 'paiement');
+    const transfers = successfulTxns.filter(t => t.type === 'transfert');
 
     const totalDeposits = deposits.reduce((acc, t) => acc + t.montant, 0);
     const totalPayments = payments.reduce((acc, t) => acc + t.montant, 0);
+    const totalTransfers = transfers.reduce((acc, t) => acc + t.montant, 0);
+    const totalFees = successfulTxns.reduce((acc, t) => acc + (t.frais || 0), 0);
 
     const activeClients = profiles.filter(p => p.role === 'client' && p.statut === 'actif').length;
     const activeMerchants = profiles.filter(p => p.role === 'commercant' && p.statut === 'actif').length;
 
-    // Calculate variation percentages (mocked realistically)
     return {
       totalDeposits,
       totalPayments,
+      totalTransfers,
+      totalFees,
       activeClients,
       activeMerchants,
       totalTxnsCount: txns.length,
@@ -53,16 +57,16 @@ export default function DashboardPage() {
   // 1. Chart: 30-day transaction volume trend
   const volumeData = useMemo(() => {
     const txns = mockStore.transactions.filter(t => t.statut === 'reussie');
-    const dailyMap: Record<string, { date: string; Dépôts: number; Paiements: number }> = {};
+    const dailyMap: Record<string, { date: string; Dépôts: number; Paiements: number; Transferts: number }> = {};
 
-    // Initialize last 7 days for a cleaner dashboard display or 10 days
+    // Initialize last 10 days for a cleaner dashboard display
     const now = new Date();
     for (let i = 9; i >= 0; i--) {
       const d = new Date(now);
       d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
       const key = d.toISOString().split('T')[0];
-      dailyMap[key] = { date: dateStr, Dépôts: 0, Paiements: 0 };
+      dailyMap[key] = { date: dateStr, Dépôts: 0, Paiements: 0, Transferts: 0 };
     }
 
     txns.forEach(t => {
@@ -70,8 +74,10 @@ export default function DashboardPage() {
       if (dailyMap[key]) {
         if (t.type === 'depot') {
           dailyMap[key].Dépôts += t.montant;
-        } else {
+        } else if (t.type === 'paiement') {
           dailyMap[key].Paiements += t.montant;
+        } else if (t.type === 'transfert') {
+          dailyMap[key].Transferts += t.montant;
         }
       }
     });
@@ -123,18 +129,18 @@ export default function DashboardPage() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Overview Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.5rem' }}>
-        {/* KPI: Deposits */}
-        <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+        {/* KPI: Chiffre d'Affaires */}
+        <div className="kpi-card" style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', border: '1px solid var(--color-accent-200)', background: 'linear-gradient(to bottom, white, var(--color-accent-50))' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-surface-500)' }}>Volume Dépôts</span>
-            <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-success-100)', color: 'var(--color-success-600)' }}>
-              <ArrowDownLeft size={20} />
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-surface-500)' }}>Chiffre d'Affaires</span>
+            <div style={{ padding: '0.5rem', borderRadius: 'var(--radius-lg)', background: 'var(--color-accent-100)', color: 'var(--color-accent-600)' }}>
+              <DollarSign size={20} />
             </div>
           </div>
-          <div className="kpi-value">{formatFCFA(stats.totalDeposits)}</div>
+          <div className="kpi-value" style={{ color: 'var(--color-accent-700)' }}>{formatFCFA(stats.totalFees)}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-            <span className="kpi-change-up">↑ 12.4%</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>vs 30j précédents</span>
+            <span className="kpi-change-up">↑ 15.6%</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>Frais collectés</span>
           </div>
         </div>
 
@@ -189,7 +195,7 @@ export default function DashboardPage() {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
           <div>
             <h2 style={{ fontSize: '1rem', fontWeight: 800 }}>Flux des volumes de transactions (10 derniers jours)</h2>
-            <p style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>Comparaison des dépôts mobile money et des paiements commerçants</p>
+            <p style={{ fontSize: '0.75rem', color: 'var(--color-surface-500)' }}>Comparaison des dépôts physiques, paiements commerçants et transferts P2P</p>
           </div>
         </div>
         <div style={{ height: '300px', width: '100%' }}>
@@ -203,6 +209,10 @@ export default function DashboardPage() {
                 <linearGradient id="colorPaiements" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="var(--color-primary-500)" stopOpacity={0.2} />
                   <stop offset="95%" stopColor="var(--color-primary-500)" stopOpacity={0} />
+                </linearGradient>
+                <linearGradient id="colorTransferts" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--color-accent-500)" stopOpacity={0.2} />
+                  <stop offset="95%" stopColor="var(--color-accent-500)" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--color-surface-200)" />
@@ -225,7 +235,7 @@ export default function DashboardPage() {
               />
               <Legend verticalAlign="top" height={36} iconType="circle" />
               <Area
-                name="Dépôts (MM)"
+                name="Dépôts Physiques"
                 type="monotone"
                 dataKey="Dépôts"
                 stroke="var(--color-success-500)"
@@ -240,6 +250,15 @@ export default function DashboardPage() {
                 stroke="var(--color-primary-600)"
                 fillOpacity={1}
                 fill="url(#colorPaiements)"
+                strokeWidth={2}
+              />
+              <Area
+                name="Transferts P2P"
+                type="monotone"
+                dataKey="Transferts"
+                stroke="var(--color-accent-600)"
+                fillOpacity={1}
+                fill="url(#colorTransferts)"
                 strokeWidth={2}
               />
             </AreaChart>

@@ -69,12 +69,16 @@ export default function PaymentPage() {
       return;
     }
 
+    const commission = Math.round(montant * 0.005);
     const txn: Transaction = {
       id: `txn-${Date.now()}`,
       type: 'paiement',
       client_id: profile!.id,
       commercant_id: merchant!.id,
       montant,
+      montant_brut: montant,
+      montant_net: montant - commission,
+      frais: commission,
       statut: 'reussie',
       operateur_mobile_money: null,
       reference: generateReference(),
@@ -87,9 +91,9 @@ export default function PaymentPage() {
 
     mockStore.addTransaction(txn);
     updateBalance(-montant);
-    mockStore.updateBalance(merchant!.id, montant);
+    mockStore.updateBalance(merchant!.id, montant - commission);
     setStep('success');
-    showToast({ type: 'success', title: 'Paiement envoyé !', message: `${formatFCFA(montant)} à ${merchant!.nom_boutique}` });
+    showToast({ type: 'success', title: 'Paiement envoyé !', message: `${formatFCFA(montant)} à ${merchant!.nom_boutique} (dont ${formatFCFA(commission)} de frais commerçant)` });
   };
 
   return (

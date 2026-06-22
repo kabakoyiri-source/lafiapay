@@ -20,7 +20,8 @@ delete from auth.users where id in (
   'f63e3ee6-e82b-4cde-a178-5e82103f0002', -- Merchant Bakary
   'f63e3ee6-e82b-4cde-a178-5e82103f0022', -- Merchant Fanta
   'f63e3ee6-e82b-4cde-a178-5e82103f0023', -- Merchant Mamadou
-  'f63e3ee6-e82b-4cde-a178-5e82103f0024'  -- Merchant Aïssata
+  'f63e3ee6-e82b-4cde-a178-5e82103f0024', -- Merchant Aïssata
+  'e81a3ee6-e82b-4cde-a178-5e82103f0003'  -- Agent Modibo
 );
 
 -- Insert into auth.users
@@ -39,7 +40,9 @@ values
 ('f63e3ee6-e82b-4cde-a178-5e82103f0002', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 70 00 00 02', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated'),
 ('f63e3ee6-e82b-4cde-a178-5e82103f0022', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 76 55 44 33', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated'),
 ('f63e3ee6-e82b-4cde-a178-5e82103f0023', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 66 11 22 33', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated'),
-('f63e3ee6-e82b-4cde-a178-5e82103f0024', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 78 99 88 77', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated');
+('f63e3ee6-e82b-4cde-a178-5e82103f0024', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 78 99 88 77', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated'),
+-- Agent
+('e81a3ee6-e82b-4cde-a178-5e82103f0003', '00000000-0000-0000-0000-000000000000', null, '', null, '+223 70 00 00 03', now(), '{"provider":"phone","providers":["phone"]}'::jsonb, '{}'::jsonb, now(), now(), 'authenticated', 'authenticated');
 
 -- ============================================================================
 -- 1. Profiles Seed Data
@@ -76,6 +79,11 @@ values
 ('f63e3ee6-e82b-4cde-a178-5e82103f0023', 'commercant', 'Mamadou Bah', '+223 66 11 22 33', '9012', 3, 'actif', now() - interval '40 days'),
 ('f63e3ee6-e82b-4cde-a178-5e82103f0024', 'commercant', 'Aïssata Koné', '+223 78 99 88 77', '3456', 2, 'actif', now() - interval '35 days');
 
+-- Insert Agent Profiles
+insert into public.profiles (id, role, nom, telephone, pin_hash, kyc_niveau, statut, created_at)
+values 
+('e81a3ee6-e82b-4cde-a178-5e82103f0003', 'agent', 'Modibo Keïta', '+223 70 00 00 03', '1234', 3, 'actif', now() - interval '60 days');
+
 -- ============================================================================
 -- 2. Merchants Specific Details
 -- ============================================================================
@@ -101,31 +109,37 @@ values
 ('f63e3ee6-e82b-4cde-a178-5e82103f0002', 185000.00, now()),
 ('f63e3ee6-e82b-4cde-a178-5e82103f0022', 342500.00, now()),
 ('f63e3ee6-e82b-4cde-a178-5e82103f0023', 127800.00, now()),
-('f63e3ee6-e82b-4cde-a178-5e82103f0024', 89300.00, now());
+('f63e3ee6-e82b-4cde-a178-5e82103f0024', 89300.00, now()),
+-- Agent
+('e81a3ee6-e82b-4cde-a178-5e82103f0003', 500000.00, now());
 
 -- ============================================================================
 -- 4. Transactions Ledger History
 -- ============================================================================
-insert into public.transactions (id, type, client_id, commercant_id, montant, statut, operateur_mobile_money, reference, created_at)
+insert into public.transactions (id, type, client_id, commercant_id, destinataire_id, agent_id, montant, montant_brut, montant_net, frais, statut, operateur_mobile_money, reference, created_at)
 values
--- Recharges Dépôts (Mobile Money)
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0001', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', null, 25000.00, 'reussie', 'orange_money', 'LP-A9182736', now() - interval '10 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0002', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0012', null, 10000.00, 'reussie', 'wave', 'LP-W1827394', now() - interval '8 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0003', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', null, 75000.00, 'reussie', 'moov_money', 'LP-M2918237', now() - interval '12 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0004', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0014', null, 5000.00, 'reussie', 'orange_money', 'LP-A1028374', now() - interval '4 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0005', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0015', null, 20000.00, 'reussie', 'wave', 'LP-W9283741', now() - interval '5 days'),
+-- Recharges Dépôts (Agents)
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0001', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 25000.00, 25000.00, 25000.00, 0.00, 'reussie', null, 'LP-A9182736', now() - interval '10 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0002', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0012', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 10000.00, 10000.00, 10000.00, 0.00, 'reussie', null, 'LP-W1827394', now() - interval '8 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0003', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 75000.00, 75000.00, 75000.00, 0.00, 'reussie', null, 'LP-M2918237', now() - interval '12 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0004', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0014', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 5000.00, 5000.00, 5000.00, 0.00, 'reussie', null, 'LP-A1028374', now() - interval '4 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0005', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0015', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 20000.00, 20000.00, 20000.00, 0.00, 'reussie', null, 'LP-W9283741', now() - interval '5 days'),
 -- Failed Recharge
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0006', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', null, 50000.00, 'echouee', 'orange_money', 'LP-A3928174', now() - interval '1 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0006', 'depot', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', null, null, 'e81a3ee6-e82b-4cde-a178-5e82103f0003', 50000.00, 50000.00, 50000.00, 0.00, 'echouee', null, 'LP-A3928174', now() - interval '1 days'),
 
--- Payments
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0101', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', 3500.00, 'reussie', null, 'LP-P0293847', now() - interval '9 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0102', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', 'f63e3ee6-e82b-4cde-a178-5e82103f0022', 12000.00, 'reussie', null, 'LP-P9283749', now() - interval '7 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0103', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0012', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', 2000.00, 'reussie', null, 'LP-P1293847', now() - interval '6 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0104', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', 'f63e3ee6-e82b-4cde-a178-5e82103f0023', 5000.00, 'reussie', null, 'LP-P4928374', now() - interval '10 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0105', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', 'f63e3ee6-e82b-4cde-a178-5e82103f0024', 2500.00, 'reussie', null, 'LP-P8291038', now() - interval '5 days'),
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0106', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0015', 'f63e3ee6-e82b-4cde-a178-5e82103f0022', 4500.00, 'reussie', null, 'LP-P9203847', now() - interval '3 days'),
+-- Payments (0.5% fee on merchant. Client pays montant. Merchant receives montant - frais)
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0101', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', null, null, 3500.00, 3500.00, 3482.50, 17.50, 'reussie', null, 'LP-P0293847', now() - interval '9 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0102', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', 'f63e3ee6-e82b-4cde-a178-5e82103f0022', null, null, 12000.00, 12000.00, 11940.00, 60.00, 'reussie', null, 'LP-P9283749', now() - interval '7 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0103', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0012', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', null, null, 2000.00, 2000.00, 1990.00, 10.00, 'reussie', null, 'LP-P1293847', now() - interval '6 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0104', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', 'f63e3ee6-e82b-4cde-a178-5e82103f0023', null, null, 5000.00, 5000.00, 4975.00, 25.00, 'reussie', null, 'LP-P4928374', now() - interval '10 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0105', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', 'f63e3ee6-e82b-4cde-a178-5e82103f0024', null, null, 2500.00, 2500.00, 2487.50, 12.50, 'reussie', null, 'LP-P8291038', now() - interval '5 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0106', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0015', 'f63e3ee6-e82b-4cde-a178-5e82103f0022', null, null, 4500.00, 4500.00, 4477.50, 22.50, 'reussie', null, 'LP-P9203847', now() - interval '3 days'),
 -- Failed Payment
-('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0107', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0014', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', 15000.00, 'echouee', null, 'LP-P8392019', now() - interval '2 days');
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0107', 'paiement', 'd52e3ee6-e82b-4cde-a178-5e82103f0014', 'f63e3ee6-e82b-4cde-a178-5e82103f0002', null, null, 15000.00, 15000.00, 14925.00, 75.00, 'echouee', null, 'LP-P8392019', now() - interval '2 days'),
+
+-- Transferts (1% fee on sender. Sender pays amount + frais, recipient receives amount)
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0201', 'transfert', 'd52e3ee6-e82b-4cde-a178-5e82103f0001', null, 'd52e3ee6-e82b-4cde-a178-5e82103f0012', null, 5000.00, 5050.00, 5000.00, 50.00, 'reussie', null, 'LP-T1029384', now() - interval '3 days'),
+('9b1deb4d-3b7d-4bad-9bdd-2b0d7b3d0202', 'transfert', 'd52e3ee6-e82b-4cde-a178-5e82103f0013', null, 'd52e3ee6-e82b-4cde-a178-5e82103f0015', null, 10000.00, 10100.00, 10000.00, 100.00, 'reussie', null, 'LP-T2938471', now() - interval '6 days');
 
 -- ============================================================================
 -- 5. Disputes (Litiges)

@@ -1,19 +1,19 @@
 // ============================================================================
 // LafiaPay — Client Recharge Page
-// Mobile Money top-up flow with operator selection and success animation
+// Agent-only deposit flow with QR simulation, instructions, and agent validation
 // ============================================================================
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, Smartphone } from 'lucide-react';
+import { ArrowLeft, Check, QrCode, Copy, Info } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { mockStore } from '../../lib/mockData';
-import { formatFCFA, generateReference, OPERATOR_INFO, QUICK_AMOUNTS } from '../../types';
-import type { MobileMoneyOperator, Transaction } from '../../types';
+import { formatFCFA, generateReference, QUICK_AMOUNTS } from '../../types';
+import type { Transaction } from '../../types';
 
-type Step = 'amount' | 'operator' | 'confirm' | 'processing' | 'success';
+type Step = 'amount' | 'code' | 'processing' | 'success';
 
 export default function RechargePage() {
   const navigate = useNavigate();
@@ -23,7 +23,7 @@ export default function RechargePage() {
   const [step, setStep] = useState<Step>('amount');
   const [amount, setAmount] = useState<number>(0);
   const [customAmount, setCustomAmount] = useState('');
-  const [operator, setOperator] = useState<MobileMoneyOperator | null>(null);
+  const [depositCode, setDepositCode] = useState('');
 
   const selectedAmount = amount || Number(customAmount) || 0;
 
@@ -33,9 +33,17 @@ export default function RechargePage() {
   };
 
   const handleNext = () => {
-    if (step === 'amount' && selectedAmount > 0) setStep('operator');
-    else if (step === 'operator' && operator) setStep('confirm');
-    else if (step === 'confirm') processRecharge();
+    if (step === 'amount' && selectedAmount >= 100) {
+      // Generate 6-digit deposit code
+      const code = `LFA-${Math.floor(100000 + Math.random() * 900000)}`;
+      setDepositCode(code);
+      setStep('code');
+    }
+  };
+
+  const handleCopyCode = () => {
+    navigator.clipboard.writeText(depositCode);
+    showToast({ type: 'success', title: 'Code copié', message: 'Le code de dépôt a été copié dans le presse-papiers' });
   };
 
   const processRecharge = async () => {
@@ -49,8 +57,11 @@ export default function RechargePage() {
       client_id: profile!.id,
       commercant_id: null,
       montant: selectedAmount,
+      montant_brut: selectedAmount,
+      montant_net: selectedAmount,
+      frais: 0,
       statut: 'reussie',
-      operateur_mobile_money: operator,
+      operateur_mobile_money: null,
       reference: generateReference(),
       created_at: new Date().toISOString(),
       client_nom: profile!.nom,
@@ -59,14 +70,17 @@ export default function RechargePage() {
     mockStore.addTransaction(txn);
     updateBalance(selectedAmount);
     setStep('success');
-    showToast({ type: 'success', title: 'Recharge réussie !', message: `+${formatFCFA(selectedAmount)} ajoutés` });
+    showToast({ type: 'success', title: 'Dépôt validé !', message: `+${formatFCFA(selectedAmount)} ajoutés à votre solde` });
   };
 
   return (
     <div style={{ padding: '1rem' }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-        <button className="btn btn-icon btn-secondary" onClick={() => step === 'amount' ? navigate(-1) : setStep('amount')}>
+        <button 
+          className="btn btn-icon btn-secondary" 
+          onClick={() => step === 'amount' ? navigate(-1) : setStep('amount')}
+        >
           <ArrowLeft size={20} />
         </button>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 800 }}>Recharger</h1>
@@ -77,7 +91,7 @@ export default function RechargePage() {
         {step === 'amount' && (
           <motion.div key="amount" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)', marginBottom: '1rem' }}>
-              Choisissez le montant à recharger
+              Choisissez le montant du dépôt physique chez l'agent
             </p>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -115,82 +129,116 @@ export default function RechargePage() {
               />
             </div>
 
+            <div className="card" style={{ padding: '1rem', background: 'var(--color-surface-50)', marginBottom: '1.5rem', display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+              <Info size={20} style={{ color: 'var(--color-primary-600)', flexShrink: 0 }} />
+              <p style={{ fontSize: '0.8125rem', color: 'var(--color-surface-600)' }}>
+                Les recharges LafiaPay s'effectuent uniquement par dépôt d'espèces physique auprès d'un agent agréé. Aucun frais n'est prélevé sur les dépôts.
+              </p>
+            </div>
+
             <button
               className="btn btn-primary btn-lg"
               style={{ width: '100%' }}
               disabled={selectedAmount < 100}
               onClick={handleNext}
             >
-              Continuer · {selectedAmount > 0 ? formatFCFA(selectedAmount) : '—'}
+              Générer le code de dépôt · {selectedAmount > 0 ? formatFCFA(selectedAmount) : '—'}
             </button>
           </motion.div>
         )}
 
-        {/* Step 2: Operator Selection */}
-        {step === 'operator' && (
-          <motion.div key="operator" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
-            <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)', marginBottom: '1rem' }}>
-              Choisissez votre opérateur Mobile Money
-            </p>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
-              {(Object.entries(OPERATOR_INFO) as [MobileMoneyOperator, typeof OPERATOR_INFO[MobileMoneyOperator]][]).map(([key, info]) => (
-                <motion.button
-                  key={key}
-                  whileTap={{ scale: 0.97 }}
-                  className={`operator-badge ${operator === key ? 'selected' : ''}`}
-                  style={{
-                    background: info.bgColor,
-                    padding: '1.25rem',
-                    justifyContent: 'flex-start',
-                    fontSize: '1rem',
-                  }}
-                  onClick={() => setOperator(key)}
-                >
-                  <Smartphone size={22} />
-                  <span style={{ fontWeight: 700 }}>{info.label}</span>
-                  {operator === key && <Check size={20} style={{ marginLeft: 'auto' }} />}
-                </motion.button>
-              ))}
-            </div>
-
-            <button
-              className="btn btn-primary btn-lg"
-              style={{ width: '100%' }}
-              disabled={!operator}
-              onClick={handleNext}
-            >
-              Confirmer l'opérateur
-            </button>
-          </motion.div>
-        )}
-
-        {/* Step 3: Confirmation */}
-        {step === 'confirm' && (
-          <motion.div key="confirm" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
+        {/* Step 2: Code Generation & QR Simulation */}
+        {step === 'code' && (
+          <motion.div key="code" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}>
             <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem', textAlign: 'center' }}>
-              <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)', marginBottom: '0.5rem' }}>Montant de la recharge</p>
-              <div className="amount-display" style={{ fontSize: '2rem', color: 'var(--color-primary-700)', marginBottom: '1rem' }}>
+              <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)', marginBottom: '0.25rem' }}>Dépôt d'espèces</p>
+              <div className="amount-display" style={{ fontSize: '1.75rem', color: 'var(--color-primary-700)', marginBottom: '1rem' }}>
                 {formatFCFA(selectedAmount)}
               </div>
-              <div style={{
-                display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-                padding: '0.5rem 1rem', borderRadius: 'var(--radius-full)',
-                background: operator ? OPERATOR_INFO[operator].bgColor : '#666',
-                color: 'white', fontWeight: 600, fontSize: '0.875rem',
-              }}>
-                <Smartphone size={16} />
-                {operator ? OPERATOR_INFO[operator].label : ''}
+
+              {/* Code display */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', background: 'var(--color-surface-100)', padding: '0.75rem', borderRadius: 'var(--radius-lg)', marginBottom: '1.5rem' }}>
+                <span className="tabular-nums" style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--color-surface-900)', letterSpacing: '0.05em' }}>
+                  {depositCode}
+                </span>
+                <button className="btn btn-icon btn-secondary btn-sm" onClick={handleCopyCode} style={{ padding: '0.375rem' }}>
+                  <Copy size={16} />
+                </button>
+              </div>
+
+              {/* QR Code simulation */}
+              <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
+                <div style={{ padding: '1rem', background: 'white', borderRadius: 'var(--radius-xl)', border: '2px solid var(--color-surface-200)' }}>
+                  {/* Styled QR Block SVG */}
+                  <svg width="140" height="140" viewBox="0 0 140 140" style={{ display: 'block' }}>
+                    {/* Corners */}
+                    <rect x="10" y="10" width="30" height="30" fill="none" stroke="var(--color-surface-900)" strokeWidth="8" />
+                    <rect x="18" y="18" width="14" height="14" fill="var(--color-surface-900)" />
+                    
+                    <rect x="100" y="10" width="30" height="30" fill="none" stroke="var(--color-surface-900)" strokeWidth="8" />
+                    <rect x="108" y="18" width="14" height="14" fill="var(--color-surface-900)" />
+                    
+                    <rect x="10" y="100" width="30" height="30" fill="none" stroke="var(--color-surface-900)" strokeWidth="8" />
+                    <rect x="18" y="108" width="14" height="14" fill="var(--color-surface-900)" />
+                    
+                    {/* center logo area background */}
+                    <rect x="55" y="55" width="30" height="30" fill="white" />
+                    <circle cx="70" cy="70" r="14" fill="var(--color-primary-500)" />
+                    <path d="M70 65 L70 75 M65 70 L75 70" stroke="white" strokeWidth="3" />
+
+                    {/* Random patterns */}
+                    <rect x="50" y="10" width="10" height="20" fill="var(--color-surface-700)" />
+                    <rect x="50" y="35" width="20" height="10" fill="var(--color-surface-700)" />
+                    <rect x="80" y="10" width="10" height="10" fill="var(--color-surface-700)" />
+                    <rect x="80" y="30" width="10" height="20" fill="var(--color-surface-700)" />
+                    
+                    <rect x="10" y="50" width="20" height="10" fill="var(--color-surface-700)" />
+                    <rect x="10" y="70" width="10" height="20" fill="var(--color-surface-700)" />
+                    <rect x="35" y="50" width="10" height="20" fill="var(--color-surface-700)" />
+                    
+                    <rect x="100" y="50" width="20" height="10" fill="var(--color-surface-700)" />
+                    <rect x="100" y="70" width="10" height="10" fill="var(--color-surface-700)" />
+                    <rect x="120" y="80" width="10" height="10" fill="var(--color-surface-700)" />
+                    
+                    <rect x="50" y="90" width="20" height="10" fill="var(--color-surface-700)" />
+                    <rect x="50" y="110" width="10" height="20" fill="var(--color-surface-700)" />
+                    <rect x="70" y="100" width="20" height="10" fill="var(--color-surface-700)" />
+                    <rect x="80" y="120" width="40" height="10" fill="var(--color-surface-700)" />
+                  </svg>
+                </div>
               </div>
             </div>
 
-            <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={handleNext}>
-              Confirmer la recharge
-            </button>
+            {/* Instructions */}
+            <h3 style={{ fontSize: '0.875rem', fontWeight: 800, marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-surface-500)' }}>
+              Instructions de recharge
+            </h3>
+
+            <div className="card" style={{ padding: '1.25rem', marginBottom: '1.5rem' }}>
+              <ol style={{ fontSize: '0.875rem', paddingLeft: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', color: 'var(--color-surface-700)' }}>
+                <li>Rendez-vous dans un point de service ou chez un agent physique <strong>LafiaPay</strong>.</li>
+                <li>Présentez-lui ce code de recharge <strong>{depositCode}</strong> ou faites scanner le code QR.</li>
+                <li>Remettez-lui la somme de <strong>{formatFCFA(selectedAmount)}</strong> en espèces.</li>
+                <li>L'agent validera la réception sur son terminal et votre compte sera instantanément crédité.</li>
+              </ol>
+            </div>
+
+            {/* Demo simulation block */}
+            <div className="card" style={{ padding: '1.25rem', border: '1.5px dashed var(--color-accent-500)', background: 'var(--color-accent-50)', marginBottom: '1.5rem' }}>
+              <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-accent-800)', marginBottom: '0.25rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Simulation Démo (Test)
+              </h4>
+              <p style={{ fontSize: '0.75rem', color: 'var(--color-accent-700)', marginBottom: '1rem' }}>
+                Pour tester l'application sans vous déplacer, simulez la validation instantanée par l'agent.
+              </p>
+              <button className="btn btn-accent btn-lg" style={{ width: '100%' }} onClick={processRecharge}>
+                Simuler la validation de l'agent
+              </button>
+            </div>
           </motion.div>
         )}
 
-        {/* Step 4: Processing */}
+        {/* Step 3: Processing */}
         {step === 'processing' && (
           <motion.div key="processing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} style={{ textAlign: 'center', paddingTop: '3rem' }}>
             <motion.div
@@ -203,14 +251,14 @@ export default function RechargePage() {
                 margin: '0 auto 1.5rem',
               }}
             />
-            <p style={{ fontWeight: 700, fontSize: '1.125rem', marginBottom: '0.5rem' }}>Traitement en cours...</p>
+            <p style={{ fontWeight: 700, fontSize: '1.125rem', marginBottom: '0.5rem' }}>Validation par l'agent en cours...</p>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)' }}>
-              Connexion avec {operator ? OPERATOR_INFO[operator].label : 'l\'opérateur'}
+              En attente du signal de confirmation du terminal agent...
             </p>
           </motion.div>
         )}
 
-        {/* Step 5: Success */}
+        {/* Step 4: Success */}
         {step === 'success' && (
           <motion.div key="success" initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} style={{ textAlign: 'center', paddingTop: '2rem' }}>
             <svg className="checkmark-svg" viewBox="0 0 52 52" style={{ margin: '0 auto 1.5rem' }}>
@@ -219,13 +267,13 @@ export default function RechargePage() {
             </svg>
 
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, marginBottom: '0.5rem', color: 'var(--color-success-600)' }}>
-              Recharge réussie !
+              Recharge validée !
             </h2>
             <p className="amount-display" style={{ fontSize: '1.75rem', color: 'var(--color-primary-700)', marginBottom: '0.25rem' }}>
               +{formatFCFA(selectedAmount)}
             </p>
             <p style={{ fontSize: '0.875rem', color: 'var(--color-surface-500)', marginBottom: '2rem' }}>
-              Votre solde a été mis à jour
+              Crédité sur votre compte par l'agent
             </p>
 
             <button className="btn btn-primary btn-lg" style={{ width: '100%' }} onClick={() => navigate('/client')}>
