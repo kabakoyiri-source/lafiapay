@@ -99,6 +99,17 @@ create table public.alertes_conformite (
     created_at timestamp with time zone default timezone('utc'::text, now()) not null
 );
 
+-- 8. OTP Codes (for registration and login verification)
+create table public.otps (
+    id uuid default gen_random_uuid() primary key,
+    telephone text not null,
+    code text not null,
+    type text not null check (type in ('inscription', 'connexion', 'transaction')),
+    used boolean not null default false,
+    expires_at timestamp with time zone not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
+
 -- ============================================================================
 -- Performance Indices
 -- ============================================================================
@@ -110,6 +121,7 @@ create index idx_transactions_merchant on public.transactions(commercant_id);
 create index idx_transactions_reference on public.transactions(reference);
 create index idx_litiges_status on public.litiges(statut);
 create index idx_alerts_criticality on public.alertes_conformite(niveau_criticite);
+create index idx_otps_telephone on public.otps(telephone);
 
 -- ============================================================================
 -- Supabase Row-Level Security (RLS) policies
@@ -117,6 +129,7 @@ create index idx_alerts_criticality on public.alertes_conformite(niveau_criticit
 
 -- Enable RLS on all tables
 alter table public.profiles enable row level security;
+alter table public.otps enable row level security;
 alter table public.commercants enable row level security;
 alter table public.comptes enable row level security;
 alter table public.transactions enable row level security;

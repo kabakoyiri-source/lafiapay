@@ -6,11 +6,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Check, QrCode, Search, ShieldCheck, User, Sparkles, UserPlus } from 'lucide-react';
+import { ArrowLeft, Check, Search, ShieldCheck, User, Sparkles, UserPlus } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
-import { mockStore } from '../../lib/mockData';
+import { mockStore, DEMO_CLIENT_ID } from '../../lib/mockData';
 import { formatFCFA } from '../../types';
+import QRScanner from '../common/QRScanner';
 import type { Profile, Transaction } from '../../types';
 
 type Step = 'client' | 'amount' | 'pin' | 'processing' | 'success';
@@ -26,7 +27,7 @@ export default function AgentCashIn() {
   
   const [amountStr, setAmountStr] = useState('');
   const [agentPin, setAgentPin] = useState('');
-  const [isQrScanning, setIsQrScanning] = useState(false);
+  // QR Scanner handles its own state now
   const [reference, setReference] = useState('');
 
   const agentBalance = compte?.solde ?? 0;
@@ -72,32 +73,40 @@ export default function AgentCashIn() {
     }
   };
 
-  // Simulate scanning client QR code (random active client)
-  const handleSimulateQRScan = async () => {
-    setIsQrScanning(true);
-    await new Promise(r => setTimeout(r, 1200)); // Scan time
-    
-    const clients = mockStore.profiles.filter(p => p.role === 'client' && p.statut === 'actif');
-    const randomClient = clients[Math.floor(Math.random() * clients.length)];
-    
-    if (randomClient) {
-      setSelectedClient(randomClient);
-      setIsQrScanning(false);
-      setStep('amount');
-      showToast({
-        type: 'success',
-        title: 'QR Code scanné',
-        message: `Client détecté : ${randomClient.nom}`
-      });
+  // Handle QR scan result — format: LAFIAPAY:CLIENT:{phone}:{id}
+  const handleQRScan = (data: string) => {
+    let found: Profile | undefined;
+
+    if (data.startsWith('LAFIAPAY:CLIENT:')) {
+      const parts = data.split(':');
+      const clientId = parts[3]; // LAFIAPAY:CLIENT:{phone}:{id}
+      found = mockStore.getProfile(clientId);
+      if (!found) {
+        // Fallback: search by phone
+        const phone = parts[2];
+        found = mockStore.findProfileByPhone(phone);
+      }
     } else {
-      setIsQrScanning(false);
-      showToast({
-        type: 'error',
-        title: 'Erreur scan',
-        message: 'Impossible de détecter le client.'
-      });
+      // Fallback: try as phone number
+      found = mockStore.findProfileByPhone(data);
+    }
+
+    if (found && found.role === 'client') {
+      if (found.statut === 'suspendu') {
+        showToast({ type: 'error', title: 'Compte suspendu', message: 'Ce compte client est actuellement suspendu.' });
+        return;
+      }
+      setSelectedClient(found);
+      setStep('amount');
+      showToast({ type: 'success', title: 'Client identifié', message: `${found.nom} — ${found.telephone}` });
+    } else {
+      showToast({ type: 'error', title: 'QR non reconnu', message: 'Ce QR code ne correspond à aucun client LafiaPay' });
     }
   };
+
+  // Simulated QR data for demo mode
+  const demoClient = mockStore.getProfile(DEMO_CLIENT_ID);
+  const simulatedClientQR = demoClient ? `LAFIAPAY:CLIENT:${demoClient.telephone}:${demoClient.id}` : '';
 
   const handleAmountSubmit = () => {
     if (depositAmount < 100) {
@@ -196,82 +205,72 @@ export default function AgentCashIn() {
               Identifiez le client bénéficiaire du dépôt d'espèces.
             </p>
 
-            {/* Simulated QR Scanner Frame */}
-            {isQrScanning ? (
-              <div style={{ textAlign: 'center', padding: '2rem 0' }}>
-                <div className="qr-viewfinder" style={{ margin: '0 auto 1.5rem' }}>
-                  <div className="qr-scan-line" />
-                </div>
-                <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-surface-700)' }}>
-                  Scan simulé en cours...
-                </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              {/* Real QR Scanner */}
+              <QRScanner
+                onScan={handleQRScan}
+                simulatedData={simulatedClientQR}
+                simulateLabel={`Simuler scan — ${demoClient?.nom || 'Client démo'}`}
+                showSimulate={true}
+              />
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
+                <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', fontWeight: 600 }}>SAISIE MANUELLE</span>
+                <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
               </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-                {/* Search Bar */}
-                <div className="input-group">
-                  <label className="input-label">Téléphone ou Code de recharge client</label>
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <div style={{ position: 'relative', flex: 1 }}>
-                      <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-surface-400)' }} />
-                      <input
-                        className="input-field"
-                        style={{ paddingLeft: '2.75rem' }}
-                        type="text"
-                        placeholder="Ex: +223 70 00 00 01 ou LFA-123456"
-                        value={clientSearch}
-                        onChange={e => setClientSearch(e.target.value)}
-                        onKeyDown={e => e.key === 'Enter' && handleClientLookup()}
-                      />
-                    </div>
-                    <button className="btn btn-secondary btn-icon" onClick={handleClientLookup} style={{ height: '48px', width: '48px', flexShrink: 0 }}>
-                      <Search size={20} style={{ color: 'var(--color-primary-600)' }} />
+
+              {/* Search Bar */}
+              <div className="input-group">
+                <label className="input-label">Téléphone ou Code de recharge client</label>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ position: 'relative', flex: 1 }}>
+                    <Search size={18} style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-surface-400)' }} />
+                    <input
+                      className="input-field"
+                      style={{ paddingLeft: '2.75rem' }}
+                      type="text"
+                      placeholder="Ex: +223 70 00 00 01 ou LFA-123456"
+                      value={clientSearch}
+                      onChange={e => setClientSearch(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && handleClientLookup()}
+                    />
+                  </div>
+                  <button className="btn btn-secondary btn-icon" onClick={handleClientLookup} style={{ height: '48px', width: '48px', flexShrink: 0 }}>
+                    <Search size={20} style={{ color: 'var(--color-primary-600)' }} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Demo Client suggestions */}
+              <div className="card" style={{ padding: '1rem', background: 'var(--color-surface-50)' }}>
+                <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-surface-700)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Clients de Démo :
+                </h4>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  {[
+                    { nom: 'Amadou Diallo', telephone: '+223 70 00 00 01' },
+                    { nom: 'Aminata Coulibaly', telephone: '+223 76 12 34 56' },
+                  ].map(c => (
+                    <button
+                      key={c.telephone}
+                      className="btn btn-ghost btn-sm"
+                      style={{ justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'white', border: '1px solid var(--color-surface-200)', borderRadius: 'var(--radius-md)' }}
+                      onClick={() => {
+                        setClientSearch(c.telephone);
+                        setSelectedClient(mockStore.profiles.find(p => p.telephone === c.telephone) || null);
+                        setStep('amount');
+                      }}
+                    >
+                      <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                        <User size={14} /> {c.nom}
+                      </span>
+                      <span style={{ color: 'var(--color-surface-500)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{c.telephone}</span>
                     </button>
-                  </div>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                  <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
-                  <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', fontWeight: 600 }}>OU</span>
-                  <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
-                </div>
-
-                {/* Scan Simulator Button */}
-                <button className="btn btn-secondary btn-lg" onClick={handleSimulateQRScan} style={{ gap: '0.5rem', width: '100%' }}>
-                  <QrCode size={20} style={{ color: 'var(--color-primary-600)' }} />
-                  <span>Scanner le QR Code Client</span>
-                </button>
-
-                {/* Demo Client suggestions */}
-                <div className="card" style={{ padding: '1rem', background: 'var(--color-surface-50)' }}>
-                  <h4 style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--color-surface-700)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Clients de Démo :
-                  </h4>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {[
-                      { nom: 'Amadou Diallo', telephone: '+223 70 00 00 01' },
-                      { nom: 'Aminata Coulibaly', telephone: '+223 76 12 34 56' },
-                    ].map(c => (
-                      <button
-                        key={c.telephone}
-                        className="btn btn-ghost btn-sm"
-                        style={{ justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: 'white', border: '1px solid var(--color-surface-200)', borderRadius: 'var(--radius-md)' }}
-                        onClick={() => {
-                          setClientSearch(c.telephone);
-                          setSelectedClient(mockStore.profiles.find(p => p.telephone === c.telephone) || null);
-                          setStep('amount');
-                        }}
-                      >
-                        <span style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                          <User size={14} /> {c.nom}
-                        </span>
-                        <span style={{ color: 'var(--color-surface-500)', fontSize: '0.75rem', fontFamily: 'monospace' }}>{c.telephone}</span>
-                      </button>
-                    ))}
-                  </div>
+                  ))}
                 </div>
               </div>
-            )}
+            </div>
           </motion.div>
         )}
 

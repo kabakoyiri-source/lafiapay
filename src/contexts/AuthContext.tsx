@@ -1,15 +1,17 @@
 // ============================================================================
 // LafiaPay — Authentication Context
-// Handles mock-mode auth (localStorage) and Supabase auth
+// Handles mock-mode auth (localStorage) and Supabase auth.
+// Supports: demo quick-login, OTP-based login, real registration.
 // ============================================================================
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
 import { IS_MOCK_MODE } from '../lib/supabase';
 import { mockStore, DEMO_CLIENT_ID, DEMO_MERCHANT_ID, DEMO_ADMIN_ID, DEMO_AGENT_ID } from '../lib/mockData';
-import type { Profile, Compte, Commercant, UserRole, AuthState } from '../types';
+import type { Profile, Compte, Commercant, UserRole, AuthState, CommerceCategory } from '../types';
 
 interface AuthContextType extends AuthState {
   signIn: (identifier: string, credential: string, role?: UserRole) => Promise<boolean>;
+  signInWithPhone: (telephone: string, pin: string) => Promise<boolean>;
   signUp: (data: SignUpData) => Promise<boolean>;
   signOut: () => void;
   updateBalance: (delta: number) => void;
@@ -34,6 +36,7 @@ const AuthContext = createContext<AuthContextType>({
   loading: true,
   isDemo: true,
   signIn: async () => false,
+  signInWithPhone: async () => false,
   signUp: async () => false,
   signOut: () => {},
   updateBalance: () => {},
@@ -84,34 +87,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return unsub;
   }, [state.user]);
 
-  const signIn = useCallback(async (identifier: string, credential: string, role?: UserRole): Promise<boolean> => {
-    if (IS_MOCK_MODE) {
-      // Demo quick-login by role
-      if (role === 'client' || identifier === '+223 70 00 00 01') {
-        return loginMockUser(DEMO_CLIENT_ID);
-      }
-      if (role === 'commercant' || identifier === '+223 70 00 00 02') {
-        return loginMockUser(DEMO_MERCHANT_ID);
-      }
-      if (role === 'admin' || identifier === 'admin@demo.com') {
-        return loginMockUser(DEMO_ADMIN_ID);
-      }
-      if (role === 'agent' || identifier === '+223 70 00 00 03') {
-        return loginMockUser(DEMO_AGENT_ID);
-      }
-      // Try finding by phone
-      const profile = mockStore.profiles.find(
-        p => p.telephone === identifier && p.pin_hash === credential
-      );
-      if (profile) {
-        return loginMockUser(profile.id);
-      }
-      return false;
-    }
-    // Real Supabase auth would go here
-    return false;
-  }, []);
-
   const loginMockUser = useCallback((userId: string): boolean => {
     const profile = mockStore.getProfile(userId);
     if (!profile) return false;
@@ -133,13 +108,70 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   }, []);
 
-  const signUp = useCallback(async (data: SignUpData): Promise<boolean> => {
+  // Demo quick-login or credential-based login
+  const signIn = useCallback(async (identifier: string, credential: string, role?: UserRole): Promise<boolean> => {
     if (IS_MOCK_MODE) {
-      // For demo, just login as the demo user of that role
-      if (data.role === 'commercant') {
+      // Demo quick-login by role
+      if (role === 'client' || identifier === '+223 70 00 00 01') {
+        return loginMockUser(DEMO_CLIENT_ID);
+      }
+      if (role === 'commercant' || identifier === '+223 70 00 00 02') {
         return loginMockUser(DEMO_MERCHANT_ID);
       }
-      return loginMockUser(DEMO_CLIENT_ID);
+      if (role === 'admin' || identifier === 'admin@demo.com') {
+        return loginMockUser(DEMO_ADMIN_ID);
+      }
+      if (role === 'agent' || identifier === '+223 70 00 00 03') {
+        return loginMockUser(DEMO_AGENT_ID);
+      }
+      // Try finding by phone + PIN
+      const profile = mockStore.profiles.find(
+        p => p.telephone === identifier && p.pin_hash === credential
+      );
+      if (profile) {
+        return loginMockUser(profile.id);
+      }
+      return false;
+    }
+    // Real Supabase auth would go here
+    return false;
+  }, [loginMockUser]);
+
+  // Login by phone + PIN (for OTP-verified flow)
+  const signInWithPhone = useCallback(async (telephone: string, pin: string): Promise<boolean> => {
+    if (IS_MOCK_MODE) {
+      const cleanPhone = telephone.replace(/\s+/g, '');
+      const profile = mockStore.profiles.find(p => {
+        return p.telephone.replace(/\s+/g, '') === cleanPhone && p.pin_hash === pin;
+      });
+      if (profile) {
+        return loginMockUser(profile.id);
+      }
+      return false;
+    }
+    return false;
+  }, [loginMockUser]);
+
+  // Real registration — creates a new user in the mock store
+  const signUp = useCallback(async (data: SignUpData): Promise<boolean> => {
+    if (IS_MOCK_MODE) {
+      try {
+        const newProfile = mockStore.registerUser({
+          telephone: data.telephone,
+          nom: data.nom,
+          pin: data.pin,
+          role: data.role,
+          nom_boutique: data.nom_boutique,
+          categorie: data.categorie as CommerceCategory | undefined,
+          ville: data.ville,
+        });
+        
+        // Auto-login the newly registered user
+        return loginMockUser(newProfile.id);
+      } catch (e) {
+        console.error('Registration failed:', e);
+        return false;
+      }
     }
     return false;
   }, [loginMockUser]);
@@ -173,6 +205,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={{
       ...state,
       signIn,
+      signInWithPhone,
       signUp,
       signOut,
       updateBalance,

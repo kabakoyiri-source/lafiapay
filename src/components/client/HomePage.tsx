@@ -262,7 +262,7 @@ export default function ClientHome() {
               <div style={{ textAlign: 'center', padding: '1rem', border: '1px solid var(--color-surface-200)', borderRadius: 'var(--radius-xl)', background: 'white' }}>
                 <div style={{ display: 'inline-block', padding: '0.75rem', background: 'white', border: '1px solid var(--color-surface-100)', borderRadius: 'var(--radius-lg)', marginBottom: '0.75rem' }}>
                   <QRCodeSVG
-                    value={profile?.telephone || 'LAFIAPAY-CLIENT'}
+                    value={`LAFIAPAY:CLIENT:${profile?.telephone || 'unknown'}:${profile?.id || 'unknown'}`}
                     size={160}
                     level="H"
                     fgColor="var(--color-primary-600)"

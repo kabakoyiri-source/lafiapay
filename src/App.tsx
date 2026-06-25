@@ -8,6 +8,7 @@ import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
+import RegisterPage from './components/auth/RegisterPage';
 
 // Client Space
 import ClientLayout from './components/client/ClientLayout';
@@ -73,6 +74,9 @@ export default function App() {
           <LoginPage />
         )
       } />
+
+      {/* Registration */}
+      <Route path="/register" element={<RegisterPage />} />
 
       {/* Client Space */}
       <Route path="/client" element={

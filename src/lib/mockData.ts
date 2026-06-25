@@ -1,7 +1,7 @@
 // ============================================================================
-// LafiaPay — Mock Data Store
+// LafiaPay — Mock Data Store (Persisted)
 // Provides realistic demo data when Supabase is not connected.
-// All data is stored in memory and resets on page reload.
+// Data is persisted in localStorage and survives page reloads.
 // ============================================================================
 
 import type {
@@ -16,8 +16,10 @@ import type {
   TransactionStatus,
   DisputeStatus,
   CommerceCategory,
-  MobileMoneyOperator,
+  UserRole,
 } from '../types';
+import { hasPersistedData, loadPersistedData, persistData } from './persistedStore';
+import { supabase, IS_MOCK_MODE } from './supabase';
 
 // ============================================================================
 // Helper: generate UUIDs
@@ -145,26 +147,28 @@ const agentBalances: Record<string, number> = {
   [DEMO_AGENT_ID]: 500000,
 };
 
-const allComptes: Compte[] = [
-  ...Object.entries(clientBalances).map(([id, solde]) => ({
-    id: `compte-${id}`,
-    profile_id: id,
-    solde,
-    updated_at: new Date().toISOString(),
-  })),
-  ...Object.entries(merchantBalances).map(([id, solde]) => ({
-    id: `compte-${id}`,
-    profile_id: id,
-    solde,
-    updated_at: new Date().toISOString(),
-  })),
-  ...Object.entries(agentBalances).map(([id, solde]) => ({
-    id: `compte-${id}`,
-    profile_id: id,
-    solde,
-    updated_at: new Date().toISOString(),
-  })),
-];
+function buildAllComptes(): Compte[] {
+  return [
+    ...Object.entries(clientBalances).map(([id, solde]) => ({
+      id: `compte-${id}`,
+      profile_id: id,
+      solde,
+      updated_at: new Date().toISOString(),
+    })),
+    ...Object.entries(merchantBalances).map(([id, solde]) => ({
+      id: `compte-${id}`,
+      profile_id: id,
+      solde,
+      updated_at: new Date().toISOString(),
+    })),
+    ...Object.entries(agentBalances).map(([id, solde]) => ({
+      id: `compte-${id}`,
+      profile_id: id,
+      solde,
+      updated_at: new Date().toISOString(),
+    })),
+  ];
+}
 
 // ============================================================================
 // Generate realistic transactions over 30 days
@@ -274,8 +278,7 @@ function generateTransactions(): Transaction[] {
 // ============================================================================
 function generateDisputes(transactions: Transaction[]): Litige[] {
   const successfulPayments = transactions.filter(t => t.type === 'paiement' && t.statut === 'reussie');
-  const disputeStatuses: DisputeStatus[] = ['ouvert', 'ouvert', 'en_cours', 'en_cours', 'resolu'];
-
+  
   return [
     {
       id: uuid(),
@@ -392,12 +395,53 @@ const auditLogs: AuditLog[] = [
 ];
 
 // ============================================================================
-// Initialize & Export the Mock Data Store
+// Initialize data — from localStorage or fresh seed
 // ============================================================================
-const allTransactions = generateTransactions();
-const allDisputes = generateDisputes(allTransactions);
-const allAlerts = generateAlerts(allTransactions);
+function initializeData() {
+  const persisted = loadPersistedData();
+  
+  if (persisted) {
+    console.info(
+      '%c💾 LafiaPay — Données restaurées depuis le stockage local',
+      'color: #3B82F6; font-size: 13px; font-weight: bold;'
+    );
+    return {
+      profiles: persisted.profiles as Profile[],
+      commercants: persisted.commercants as Commercant[],
+      comptes: persisted.comptes as Compte[],
+      transactions: persisted.transactions as Transaction[],
+      litiges: persisted.litiges as Litige[],
+      auditLogs: persisted.auditLogs as AuditLog[],
+      alertes: persisted.alertes as AlerteConformite[],
+    };
+  }
 
+  // Fresh seed
+  console.info(
+    '%c🌱 LafiaPay — Initialisation avec les données de démonstration',
+    'color: #10B981; font-size: 13px; font-weight: bold;'
+  );
+  
+  const transactions = generateTransactions();
+  const disputes = generateDisputes(transactions);
+  const alerts = generateAlerts(transactions);
+
+  return {
+    profiles: [...clientProfiles, ...merchantProfiles, ...adminProfiles, ...agentProfiles],
+    commercants: [...merchantDetails],
+    comptes: buildAllComptes(),
+    transactions,
+    litiges: disputes,
+    auditLogs: [...auditLogs],
+    alertes: alerts,
+  };
+}
+
+const initialData = initializeData();
+
+// ============================================================================
+// Store Interface & Export
+// ============================================================================
 export interface MockDataStore {
   profiles: Profile[];
   commercants: Commercant[];
@@ -411,24 +455,40 @@ export interface MockDataStore {
   updateBalance: (profileId: string, delta: number) => void;
   getBalance: (profileId: string) => number;
   getProfile: (id: string) => Profile | undefined;
+  findProfileByPhone: (phone: string) => Profile | undefined;
   getCommerçant: (id: string) => Commercant | undefined;
   getCommerçantByQR: (qrCodeId: string) => Commercant | undefined;
   getTransactionsForUser: (userId: string) => Transaction[];
   getTransactionsForMerchant: (merchantId: string) => Transaction[];
   addDispute: (litige: Litige) => void;
   updateDisputeStatus: (id: string, statut: DisputeStatus) => void;
+  // Registration
+  registerUser: (data: RegisterData) => Profile;
+  // Persistence
+  persist: () => void;
+  resetStore: () => void;
   listeners: Set<() => void>;
   subscribe: (listener: () => void) => () => void;
 }
 
+export interface RegisterData {
+  telephone: string;
+  nom: string;
+  pin: string;
+  role: UserRole;
+  nom_boutique?: string;
+  categorie?: CommerceCategory;
+  ville?: string;
+}
+
 export const mockStore: MockDataStore = {
-  profiles: [...clientProfiles, ...merchantProfiles, ...adminProfiles, ...agentProfiles],
-  commercants: [...merchantDetails],
-  comptes: [...allComptes],
-  transactions: [...allTransactions],
-  litiges: [...allDisputes],
-  auditLogs: [...auditLogs],
-  alertes: [...allAlerts],
+  profiles: initialData.profiles,
+  commercants: initialData.commercants,
+  comptes: initialData.comptes,
+  transactions: initialData.transactions,
+  litiges: initialData.litiges,
+  auditLogs: initialData.auditLogs,
+  alertes: initialData.alertes,
   listeners: new Set(),
 
   subscribe(listener: () => void) {
@@ -436,8 +496,40 @@ export const mockStore: MockDataStore = {
     return () => this.listeners.delete(listener);
   },
 
+  persist() {
+    persistData({
+      profiles: this.profiles,
+      commercants: this.commercants,
+      comptes: this.comptes,
+      transactions: this.transactions,
+      litiges: this.litiges,
+      auditLogs: this.auditLogs,
+      alertes: this.alertes,
+    });
+  },
+
   addTransaction(txn: Transaction) {
     this.transactions.unshift(txn);
+    this.persist();
+    if (!IS_MOCK_MODE) {
+      supabase.from('transactions').insert({
+        id: txn.id,
+        type: txn.type,
+        client_id: txn.client_id,
+        commercant_id: txn.commercant_id,
+        destinataire_id: txn.destinataire_id,
+        agent_id: txn.agent_id,
+        montant: txn.montant,
+        montant_brut: txn.montant_brut,
+        montant_net: txn.montant_net,
+        frais: txn.frais,
+        statut: txn.statut,
+        reference: txn.reference,
+        created_at: txn.created_at
+      }).then(({ error }) => {
+        if (error) console.error('Error inserting txn to Supabase:', error);
+      });
+    }
     this.listeners.forEach(l => l());
   },
 
@@ -446,7 +538,16 @@ export const mockStore: MockDataStore = {
     if (compte) {
       compte.solde = Math.max(0, compte.solde + delta);
       compte.updated_at = new Date().toISOString();
+      if (!IS_MOCK_MODE) {
+        supabase.from('comptes').update({
+          solde: compte.solde,
+          updated_at: compte.updated_at
+        }).eq('profile_id', profileId).then(({ error }) => {
+          if (error) console.error('Error updating balance in Supabase:', error);
+        });
+      }
     }
+    this.persist();
     this.listeners.forEach(l => l());
   },
 
@@ -456,6 +557,11 @@ export const mockStore: MockDataStore = {
 
   getProfile(id: string): Profile | undefined {
     return this.profiles.find(p => p.id === id);
+  },
+
+  findProfileByPhone(phone: string): Profile | undefined {
+    const clean = phone.replace(/\s+/g, '');
+    return this.profiles.find(p => p.telephone.replace(/\s+/g, '') === clean);
   },
 
   getCommerçant(id: string): Commercant | undefined {
@@ -476,6 +582,17 @@ export const mockStore: MockDataStore = {
 
   addDispute(litige: Litige) {
     this.litiges.unshift(litige);
+    this.persist();
+    if (!IS_MOCK_MODE) {
+      supabase.from('litiges').insert({
+        id: litige.id,
+        transaction_id: litige.transaction_id,
+        declarant_id: litige.declarant_id,
+        description: litige.description,
+        statut: litige.statut,
+        created_at: litige.created_at
+      });
+    }
     this.listeners.forEach(l => l());
   },
 
@@ -486,7 +603,240 @@ export const mockStore: MockDataStore = {
       if (statut === 'resolu') {
         litige.resolved_at = new Date().toISOString();
       }
+      if (!IS_MOCK_MODE) {
+        supabase.from('litiges').update({
+          statut: statut,
+          resolved_at: litige.resolved_at
+        }).eq('id', id);
+      }
     }
+    this.persist();
     this.listeners.forEach(l => l());
   },
+
+  registerUser(data: RegisterData): Profile {
+    const newId = `mock-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    
+    const newProfile: Profile = {
+      id: newId,
+      role: data.role,
+      nom: data.nom,
+      telephone: data.telephone,
+      pin_hash: data.pin,
+      kyc_niveau: 1,
+      statut: 'actif',
+      created_at: new Date().toISOString(),
+    };
+
+    this.profiles.push(newProfile);
+
+    // Create account with 0 balance
+    const newCompte: Compte = {
+      id: `compte-${newId}`,
+      profile_id: newId,
+      solde: 0,
+      updated_at: new Date().toISOString(),
+    };
+    this.comptes.push(newCompte);
+
+    // If merchant, create merchant details
+    if (data.role === 'commercant' && data.nom_boutique) {
+      const qrId = `QR-${data.nom_boutique.toUpperCase().replace(/\s+/g, '-').substring(0, 15)}-${Math.floor(Math.random() * 1000)}`;
+      const newMerchant: Commercant = {
+        id: newId,
+        nom_boutique: data.nom_boutique,
+        categorie: data.categorie || 'autre',
+        ville: data.ville || 'Bamako',
+        qr_code_id: qrId,
+        avatar_url: '',
+      };
+      this.commercants.push(newMerchant);
+    }
+
+    this.persist();
+
+    // If real Supabase mode, insert profile row
+    if (!IS_MOCK_MODE) {
+      supabase.auth.signUp({
+        email: `${data.telephone.replace(/\s+/g, '')}@lafiapay.com`,
+        password: data.pin
+      }).then(({ data: authData, error }) => {
+        if (error) {
+          console.error('Error signing up in Supabase:', error);
+          return;
+        }
+        if (authData.user) {
+          const realId = authData.user.id;
+          newProfile.id = realId;
+          newCompte.profile_id = realId;
+          newCompte.id = `compte-${realId}`;
+          if (data.role === 'commercant') {
+            const idx = this.commercants.findIndex(m => m.id === newId);
+            if (idx !== -1) this.commercants[idx].id = realId;
+          }
+
+          // Insert into profiles
+          supabase.from('profiles').insert({
+            id: realId,
+            role: data.role,
+            nom: data.nom,
+            telephone: data.telephone,
+            pin_hash: data.pin,
+            kyc_niveau: 1,
+            statut: 'actif'
+          }).then(() => {
+            // Insert into comptes
+            supabase.from('comptes').insert({
+              profile_id: realId,
+              solde: 0.0,
+              updated_at: new Date().toISOString()
+            });
+
+            // Insert into commercants if needed
+            if (data.role === 'commercant' && data.nom_boutique) {
+              const qrId = `QR-${data.nom_boutique.toUpperCase().replace(/\s+/g, '-').substring(0, 15)}-${Math.floor(Math.random() * 1000)}`;
+              supabase.from('commercants').insert({
+                id: realId,
+                nom_boutique: data.nom_boutique,
+                categorie: data.categorie || 'autre',
+                ville: data.ville || 'Bamako',
+                qr_code_id: qrId
+              });
+            }
+          });
+        }
+      });
+    }
+
+    this.listeners.forEach(l => l());
+
+    console.info(
+      `%c✅ Nouveau compte créé: ${data.nom} (${data.role}) — ${data.telephone}`,
+      'color: #10B981; font-weight: bold;'
+    );
+
+    return newProfile;
+  },
+
+  resetStore() {
+    // Clear localStorage and reload fresh data
+    import('./persistedStore').then(({ clearPersistedData }) => {
+      clearPersistedData();
+      window.location.reload();
+    });
+  },
 };
+
+// If Supabase is connected, load data from Supabase asynchronously
+if (!IS_MOCK_MODE) {
+  const loadSupabaseData = async () => {
+    try {
+      // 1. Profiles
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (profiles) {
+        mockStore.profiles = profiles;
+      }
+      
+      // 2. Commercants
+      const { data: commercants } = await supabase.from('commercants').select('*');
+      if (commercants) {
+        mockStore.commercants = commercants;
+      }
+
+      // 3. Comptes (balances)
+      const { data: comptes } = await supabase.from('comptes').select('*');
+      if (comptes) {
+        mockStore.comptes = comptes;
+      }
+
+      // 4. Transactions
+      const { data: txns } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+      if (txns) {
+        mockStore.transactions = txns.map(tx => ({
+          ...tx,
+          client_nom: mockStore.profiles.find(p => p.id === tx.client_id)?.nom,
+          commercant_nom: tx.commercant_id ? mockStore.profiles.find(p => p.id === tx.commercant_id)?.nom : undefined,
+          commercant_boutique: tx.commercant_id ? mockStore.commercants.find(m => m.id === tx.commercant_id)?.nom_boutique : undefined,
+          commercant_categorie: tx.commercant_id ? mockStore.commercants.find(m => m.id === tx.commercant_id)?.categorie : undefined,
+        }));
+      }
+
+      // 5. Litiges
+      const { data: disputes } = await supabase.from('litiges').select('*');
+      if (disputes) {
+        mockStore.litiges = disputes.map(d => ({
+          ...d,
+          declarant_nom: mockStore.profiles.find(p => p.id === d.declarant_id)?.nom,
+          transaction_montant: mockStore.transactions.find(t => t.id === d.transaction_id)?.montant,
+          transaction_reference: mockStore.transactions.find(t => t.id === d.transaction_id)?.reference,
+        }));
+      }
+
+      mockStore.listeners.forEach(l => l());
+      console.info('⚡ LafiaPay — Supabase data loaded successfully!');
+    } catch (err) {
+      console.error('Failed to load data from Supabase:', err);
+    }
+  };
+
+  loadSupabaseData();
+
+  // Subscribe to realtime database changes
+  supabase
+    .channel('supabase_realtime_sync')
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions' }, async (payload) => {
+      if (payload.eventType === 'INSERT') {
+        const newTx = payload.new as any;
+        const exists = mockStore.transactions.some(t => t.id === newTx.id);
+        if (!exists) {
+          mockStore.transactions.unshift({
+            ...newTx,
+            client_nom: mockStore.getProfile(newTx.client_id)?.nom,
+            commercant_nom: newTx.commercant_id ? mockStore.getProfile(newTx.commercant_id)?.nom : undefined,
+            commercant_boutique: newTx.commercant_id ? mockStore.getCommerçant(newTx.commercant_id)?.nom_boutique : undefined,
+            commercant_categorie: newTx.commercant_id ? mockStore.getCommerçant(newTx.commercant_id)?.categorie : undefined,
+          });
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const updated = payload.new as any;
+        const idx = mockStore.transactions.findIndex(t => t.id === updated.id);
+        if (idx !== -1) {
+          mockStore.transactions[idx] = { ...mockStore.transactions[idx], ...updated };
+        }
+      }
+      mockStore.listeners.forEach(l => l());
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'comptes' }, (payload) => {
+      if (payload.eventType === 'UPDATE' || payload.eventType === 'INSERT') {
+        const updated = payload.new as any;
+        const idx = mockStore.comptes.findIndex(c => c.id === updated.id);
+        if (idx !== -1) {
+          mockStore.comptes[idx] = { ...mockStore.comptes[idx], ...updated };
+        } else {
+          mockStore.comptes.push(updated);
+        }
+      }
+      mockStore.listeners.forEach(l => l());
+    })
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'profiles' }, (payload) => {
+      if (payload.eventType === 'INSERT') {
+        const newProf = payload.new as any;
+        if (!mockStore.profiles.some(p => p.id === newProf.id)) {
+          mockStore.profiles.push(newProf);
+        }
+      } else if (payload.eventType === 'UPDATE') {
+        const updated = payload.new as any;
+        const idx = mockStore.profiles.findIndex(p => p.id === updated.id);
+        if (idx !== -1) {
+          mockStore.profiles[idx] = { ...mockStore.profiles[idx], ...updated };
+        }
+      }
+      mockStore.listeners.forEach(l => l());
+    })
+    .subscribe();
+}
+
+// Persist initial seed data if it wasn't already persisted
+if (!hasPersistedData()) {
+  mockStore.persist();
+}

@@ -6,11 +6,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Camera, Hash, Store, Check } from 'lucide-react';
+import { ArrowLeft, Hash, Store, Check } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { mockStore } from '../../lib/mockData';
 import { formatFCFA, generateReference, CATEGORY_INFO } from '../../types';
+import QRScanner from '../common/QRScanner';
 import type { Transaction, Commercant } from '../../types';
 
 type Step = 'scan' | 'merchant' | 'amount' | 'pin' | 'processing' | 'success';
@@ -26,13 +27,30 @@ export default function PaymentPage() {
   const [pin, setPin] = useState('');
   const [manualCode, setManualCode] = useState('');
 
-  // Simulate QR scan: pick a random merchant
-  const simulateScan = () => {
-    const merchants = mockStore.commercants;
-    const random = merchants[Math.floor(Math.random() * merchants.length)];
-    setMerchant(random);
-    setStep('amount');
+  // Handle QR scan result — format: LAFIAPAY:MERCHANT:{qr_code_id}
+  const handleQRScan = (data: string) => {
+    let found: Commercant | undefined;
+
+    if (data.startsWith('LAFIAPAY:MERCHANT:')) {
+      const qrCodeId = data.split(':')[2];
+      found = mockStore.getCommerçantByQR(qrCodeId);
+    } else {
+      // Fallback: try matching raw QR code ID
+      found = mockStore.getCommerçantByQR(data) ||
+        mockStore.commercants.find(c => c.qr_code_id.toLowerCase() === data.toLowerCase());
+    }
+
+    if (found) {
+      setMerchant(found);
+      setStep('amount');
+      showToast({ type: 'success', title: 'Commerçant identifié', message: found.nom_boutique });
+    } else {
+      showToast({ type: 'error', title: 'QR non reconnu', message: 'Ce QR code ne correspond à aucun commerçant LafiaPay' });
+    }
   };
+
+  // Simulate scan: pick the demo merchant
+  const simulatedMerchantQR = `LAFIAPAY:MERCHANT:${mockStore.commercants[0]?.qr_code_id || 'QR-EPICERIE-SOGO'}`;
 
   const handleManualCode = () => {
     const found = mockStore.getCommerçantByQR(manualCode) ||
@@ -109,51 +127,21 @@ export default function PaymentPage() {
         {/* Step 1: Scan / Manual Entry */}
         {step === 'scan' && (
           <motion.div key="scan" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-            {/* Simulated Scanner */}
-            <div style={{
-              background: '#111',
-              borderRadius: 'var(--radius-2xl)',
-              padding: '2rem',
-              marginBottom: '1.5rem',
-              position: 'relative',
-              overflow: 'hidden',
-            }}>
-              <div className="qr-viewfinder" style={{ margin: '0 auto' }}>
-                <div className="qr-scan-line" />
-                {/* Bottom-left and bottom-right corners */}
-                <div style={{
-                  position: 'absolute', bottom: 0, left: 0,
-                  width: 40, height: 40,
-                  borderLeft: '3px solid var(--color-primary-500)',
-                  borderBottom: '3px solid var(--color-primary-500)',
-                  borderBottomLeftRadius: 8,
-                }} />
-                <div style={{
-                  position: 'absolute', bottom: 0, right: 0,
-                  width: 40, height: 40,
-                  borderRight: '3px solid var(--color-primary-500)',
-                  borderBottom: '3px solid var(--color-primary-500)',
-                  borderBottomRightRadius: 8,
-                }} />
-              </div>
-              <p style={{ color: 'rgba(255,255,255,0.6)', textAlign: 'center', fontSize: '0.875rem', marginTop: '1rem' }}>
-                Pointez vers le QR code du commerçant
-              </p>
-            </div>
-
-            {/* Simulate button (for demo) */}
-            <button className="btn btn-primary btn-lg" style={{ width: '100%', marginBottom: '1rem' }} onClick={simulateScan}>
-              <Camera size={20} />
-              Simuler un scan QR
-            </button>
+            {/* Real QR Scanner */}
+            <QRScanner
+              onScan={handleQRScan}
+              simulatedData={simulatedMerchantQR}
+              simulateLabel="Simuler un scan commerçant"
+              showSimulate={true}
+            />
 
             {/* Manual code entry */}
             <div style={{
               display: 'flex', alignItems: 'center', gap: '1rem',
-              marginBottom: '1rem',
+              margin: '1rem 0',
             }}>
               <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
-              <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', fontWeight: 600 }}>OU</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--color-surface-400)', fontWeight: 600 }}>SAISIE MANUELLE</span>
               <div style={{ flex: 1, height: 1, background: 'var(--color-surface-200)' }} />
             </div>
 

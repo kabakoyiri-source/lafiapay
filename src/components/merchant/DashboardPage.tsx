@@ -127,7 +127,7 @@ export default function MerchantDashboard() {
         }}>
           <QRCodeSVG
             id="merchant-qr-code"
-            value={commercant?.qr_code_id || 'LAFIAPAY-MERCHANT'}
+            value={`LAFIAPAY:MERCHANT:${commercant?.qr_code_id || 'UNKNOWN'}`}
             size={180}
             level="H"
             fgColor="var(--color-primary-600)"
