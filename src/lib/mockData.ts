@@ -464,6 +464,8 @@ export interface MockDataStore {
   updateDisputeStatus: (id: string, statut: DisputeStatus) => void;
   // Registration
   registerUser: (data: RegisterData) => Profile;
+  // Sync
+  syncWithSupabase: () => Promise<void>;
   // Persistence
   persist: () => void;
   resetStore: () => void;
