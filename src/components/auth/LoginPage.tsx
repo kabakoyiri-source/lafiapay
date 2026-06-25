@@ -232,16 +232,16 @@ export default function LoginPage() {
               width: 80,
               height: 80,
               borderRadius: '1.5rem',
-              background: 'rgba(255, 255, 255, 0.15)',
-              backdropFilter: 'blur(10px)',
+              background: 'white',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               margin: '0 auto 1rem',
               border: '1px solid rgba(255, 255, 255, 0.2)',
+              overflow: 'hidden',
             }}
           >
-            <Wallet size={36} strokeWidth={2.5} />
+            <img src="/logo.png" alt="LafiaPay Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0 }}

@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { createContext, useContext, useEffect, useState, useCallback, type ReactNode } from 'react';
-import { IS_MOCK_MODE } from '../lib/supabase';
+import { supabase, IS_MOCK_MODE } from '../lib/supabase';
 import { mockStore, DEMO_CLIENT_ID, DEMO_MERCHANT_ID, DEMO_ADMIN_ID, DEMO_AGENT_ID } from '../lib/mockData';
 import type { Profile, Compte, Commercant, UserRole, AuthState, CommerceCategory } from '../types';
 
@@ -53,39 +53,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isDemo: IS_MOCK_MODE,
   });
 
-  // Check for persisted session on mount
-  useEffect(() => {
-    const savedUserId = localStorage.getItem('lafiapay-user-id');
-    if (savedUserId && IS_MOCK_MODE) {
-      const profile = mockStore.getProfile(savedUserId);
-      if (profile) {
-        const compte = mockStore.comptes.find(c => c.profile_id === savedUserId) || null;
-        const commercant = profile.role === 'commercant' 
-          ? mockStore.getCommerçant(savedUserId) || null 
-          : null;
-        setState({
-          user: { id: savedUserId },
-          profile,
-          compte,
-          commercant,
-          loading: false,
-          isDemo: true,
-        });
-        return;
-      }
-    }
-    setState(prev => ({ ...prev, loading: false }));
-  }, []);
+  const loginRealUser = useCallback(async (userId: string): Promise<boolean> => {
+    try {
+      // 1. Fetch profile
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
 
-  // Subscribe to mock store changes for balance updates
-  useEffect(() => {
-    if (!state.user) return;
-    const unsub = mockStore.subscribe(() => {
-      const compte = mockStore.comptes.find(c => c.profile_id === state.user!.id) || null;
-      setState(prev => ({ ...prev, compte }));
-    });
-    return unsub;
-  }, [state.user]);
+      if (profileErr || !profile) return false;
+
+      // 2. Fetch compte
+      const { data: compte, error: compteErr } = await supabase
+        .from('comptes')
+        .select('*')
+        .eq('profile_id', userId)
+        .maybeSingle();
+
+      // 3. Fetch commercant specifics if merchant
+      let commercant = null;
+      if (profile.role === 'commercant') {
+        const { data: commData } = await supabase
+          .from('commercants')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+        commercant = commData;
+      }
+
+      localStorage.setItem('lafiapay-user-id', userId);
+      setState({
+        user: { id: userId },
+        profile: profile as Profile,
+        compte: compte as Compte,
+        commercant: commercant as Commercant | null,
+        loading: false,
+        isDemo: false,
+      });
+      return true;
+    } catch (e) {
+      console.error('loginRealUser failed:', e);
+      return false;
+    }
+  }, []);
 
   const loginMockUser = useCallback((userId: string): boolean => {
     const profile = mockStore.getProfile(userId);
@@ -107,6 +118,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
     return true;
   }, []);
+
+  // Check for persisted session on mount
+  useEffect(() => {
+    const savedUserId = localStorage.getItem('lafiapay-user-id');
+    if (savedUserId) {
+      if (IS_MOCK_MODE) {
+        const profile = mockStore.getProfile(savedUserId);
+        if (profile) {
+          const compte = mockStore.comptes.find(c => c.profile_id === savedUserId) || null;
+          const commercant = profile.role === 'commercant' 
+            ? mockStore.getCommerçant(savedUserId) || null 
+            : null;
+          setState({
+            user: { id: savedUserId },
+            profile,
+            compte,
+            commercant,
+            loading: false,
+            isDemo: true,
+          });
+          return;
+        }
+      } else {
+        loginRealUser(savedUserId).then(success => {
+          if (!success) {
+            setState(prev => ({ ...prev, loading: false }));
+          }
+        });
+        return;
+      }
+    }
+    setState(prev => ({ ...prev, loading: false }));
+  }, [loginRealUser]);
+
+  // Subscribe to mock store changes for balance updates (mock mode only)
+  useEffect(() => {
+    if (!IS_MOCK_MODE || !state.user) return;
+    const unsub = mockStore.subscribe(() => {
+      const compte = mockStore.comptes.find(c => c.profile_id === state.user!.id) || null;
+      setState(prev => ({ ...prev, compte }));
+    });
+    return unsub;
+  }, [state.user]);
 
   // Demo quick-login or credential-based login
   const signIn = useCallback(async (identifier: string, credential: string, role?: UserRole): Promise<boolean> => {
@@ -132,10 +186,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return loginMockUser(profile.id);
       }
       return false;
+    } else {
+      // Real DB mode
+      // Demo quick-connect logins
+      if (role === 'client' || identifier === '+223 70 00 00 01') {
+        const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 01').maybeSingle();
+        if (data) return loginRealUser(data.id);
+      }
+      if (role === 'commercant' || identifier === '+223 70 00 00 02') {
+        const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 02').maybeSingle();
+        if (data) return loginRealUser(data.id);
+      }
+      if (role === 'admin' || identifier === 'admin@demo.com') {
+        const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 00').maybeSingle();
+        if (data) return loginRealUser(data.id);
+      }
+      if (role === 'agent' || identifier === '+223 70 00 00 03') {
+        const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 03').maybeSingle();
+        if (data) return loginRealUser(data.id);
+      }
+
+      // Standard credentials lookup (phone + pin)
+      const cleanPhone = identifier.replace(/[\s+]+/g, '');
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (profiles) {
+        const match = profiles.find(p => 
+          p.telephone.replace(/[\s+]+/g, '') === cleanPhone && p.pin_hash === credential
+        );
+        if (match) {
+          return await loginRealUser(match.id);
+        }
+      }
+      return false;
     }
-    // Real Supabase auth would go here
-    return false;
-  }, [loginMockUser]);
+  }, [loginMockUser, loginRealUser]);
 
   // Login by phone + PIN (for OTP-verified flow)
   const signInWithPhone = useCallback(async (telephone: string, pin: string): Promise<boolean> => {
@@ -148,11 +232,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return loginMockUser(profile.id);
       }
       return false;
+    } else {
+      try {
+        const cleanPhone = telephone.replace(/[\s+]+/g, '');
+        const { data: profiles } = await supabase.from('profiles').select('*');
+        if (profiles) {
+          const match = profiles.find(p => 
+            p.telephone.replace(/[\s+]+/g, '') === cleanPhone && p.pin_hash === pin
+          );
+          if (match) {
+            return await loginRealUser(match.id);
+          }
+        }
+        return false;
+      } catch (e) {
+        console.error('Real signInWithPhone failed:', e);
+        return false;
+      }
     }
-    return false;
-  }, [loginMockUser]);
+  }, [loginMockUser, loginRealUser]);
 
-  // Real registration — creates a new user in the mock store
+  // Real registration
   const signUp = useCallback(async (data: SignUpData): Promise<boolean> => {
     if (IS_MOCK_MODE) {
       try {
@@ -166,15 +266,54 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ville: data.ville,
         });
         
-        // Auto-login the newly registered user
         return loginMockUser(newProfile.id);
       } catch (e) {
         console.error('Registration failed:', e);
         return false;
       }
+    } else {
+      try {
+        const userId = crypto.randomUUID();
+        
+        // 1. Insert Profile
+        const { error: profileErr } = await supabase.from('profiles').insert({
+          id: userId,
+          role: data.role,
+          nom: data.nom,
+          telephone: data.telephone,
+          pin_hash: data.pin,
+          kyc_niveau: 1,
+          statut: 'actif',
+        });
+        if (profileErr) throw profileErr;
+
+        // 2. Create Compte
+        const { error: compteErr } = await supabase.from('comptes').insert({
+          profile_id: userId,
+          solde: 0.0,
+        });
+        if (compteErr) throw compteErr;
+
+        // 3. Create Commercant specifics if merchant
+        if (data.role === 'commercant' && data.nom_boutique) {
+          const qrId = `QR-${data.nom_boutique.toUpperCase().replace(/\s+/g, '-')}-${Math.floor(Math.random() * 999)}`;
+          const { error: commErr } = await supabase.from('commercants').insert({
+            id: userId,
+            nom_boutique: data.nom_boutique,
+            categorie: data.categorie || 'autre',
+            ville: data.ville || 'Bamako',
+            qr_code_id: qrId,
+          });
+          if (commErr) throw commErr;
+        }
+
+        return await loginRealUser(userId);
+      } catch (e) {
+        console.error('Real Registration failed:', e);
+        return false;
+      }
     }
-    return false;
-  }, [loginMockUser]);
+  }, [loginMockUser, loginRealUser]);
 
   const signOut = useCallback(() => {
     localStorage.removeItem('lafiapay-user-id');
@@ -190,14 +329,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateBalance = useCallback((delta: number) => {
     if (state.user) {
-      mockStore.updateBalance(state.user.id, delta);
+      if (IS_MOCK_MODE) {
+        mockStore.updateBalance(state.user.id, delta);
+      } else {
+        refreshBalance();
+      }
     }
   }, [state.user]);
 
-  const refreshBalance = useCallback(() => {
+  const refreshBalance = useCallback(async () => {
     if (state.user) {
-      const compte = mockStore.comptes.find(c => c.profile_id === state.user!.id) || null;
-      setState(prev => ({ ...prev, compte }));
+      if (IS_MOCK_MODE) {
+        const compte = mockStore.comptes.find(c => c.profile_id === state.user!.id) || null;
+        setState(prev => ({ ...prev, compte }));
+      } else {
+        const { data: compte } = await supabase
+          .from('comptes')
+          .select('*')
+          .eq('profile_id', state.user!.id)
+          .maybeSingle();
+        if (compte) {
+          setState(prev => ({ ...prev, compte: compte as Compte }));
+        }
+      }
     }
   }, [state.user]);
 
