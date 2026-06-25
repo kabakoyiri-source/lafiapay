@@ -15,6 +15,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { generateOTP, verifyOTP, getDemoOTPCode } from '../../lib/otpService';
 import { mockStore } from '../../lib/mockData';
+import { supabase, IS_MOCK_MODE } from '../../lib/supabase';
 import type { UserRole, CommerceCategory } from '../../types';
 
 type Step = 'info' | 'otp' | 'pin' | 'success';
@@ -64,6 +65,11 @@ export default function RegisterPage() {
     return () => clearInterval(interval);
   }, [step, otpTimer]);
 
+  // Sync profiles and accounts on mount
+  useEffect(() => {
+    mockStore.syncWithSupabase();
+  }, []);
+
   const progressPercent = step === 'info' ? 33 : step === 'otp' ? 66 : step === 'pin' ? 90 : 100;
 
   // ========================================================================
@@ -79,14 +85,28 @@ export default function RegisterPage() {
       return;
     }
 
-    // Check if phone already registered
-    const existing = mockStore.findProfileByPhone(telephone);
+    setLoading(true);
+
+    // Check if phone already registered (live check)
+    let existing = null;
+    if (IS_MOCK_MODE) {
+      existing = mockStore.findProfileByPhone(telephone);
+    } else {
+      const { data: profiles, error } = await supabase.from('profiles').select('*');
+      if (profiles) {
+        mockStore.profiles = profiles;
+        existing = mockStore.findProfileByPhone(telephone);
+      } else if (error) {
+        console.error('Error checking existing profiles in Supabase:', error);
+      }
+    }
+
     if (existing) {
+      setLoading(false);
       showToast({ type: 'error', title: 'Numéro déjà enregistré', message: 'Ce numéro de téléphone est déjà associé à un compte LafiaPay.' });
       return;
     }
 
-    setLoading(true);
     await new Promise(r => setTimeout(r, 800));
     
     generateOTP(telephone, 'inscription');

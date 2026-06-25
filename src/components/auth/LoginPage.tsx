@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { generateOTP, verifyOTP, getDemoOTPCode } from '../../lib/otpService';
 import { mockStore } from '../../lib/mockData';
+import { supabase, IS_MOCK_MODE } from '../../lib/supabase';
 import type { UserRole } from '../../types';
 
 type LoginStep = 'credentials' | 'otp' | 'pin';
@@ -51,6 +52,11 @@ export default function LoginPage() {
     return () => clearInterval(interval);
   }, [loginStep, otpTimer]);
 
+  // Sync profiles and accounts on mount
+  useEffect(() => {
+    mockStore.syncWithSupabase();
+  }, []);
+
   // ========================================================================
   // Step 1: Phone → Send OTP
   // ========================================================================
@@ -60,14 +66,28 @@ export default function LoginPage() {
       return;
     }
 
-    // Check if the phone exists
-    const profile = mockStore.findProfileByPhone(phone);
+    setLoading(true);
+
+    let profile = null;
+    if (IS_MOCK_MODE) {
+      profile = mockStore.findProfileByPhone(phone);
+    } else {
+      // Fetch fresh profiles directly from Supabase to catch recent mobile registrations
+      const { data: profiles, error } = await supabase.from('profiles').select('*');
+      if (profiles) {
+        mockStore.profiles = profiles;
+        profile = mockStore.findProfileByPhone(phone);
+      } else if (error) {
+        console.error('Error checking profiles in Supabase:', error);
+      }
+    }
+
     if (!profile) {
+      setLoading(false);
       showToast({ type: 'error', title: 'Compte introuvable', message: 'Aucun compte associé à ce numéro. Inscrivez-vous d\'abord.' });
       return;
     }
 
-    setLoading(true);
     await new Promise(r => setTimeout(r, 600));
 
     generateOTP(phone, 'connexion');
