@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
+import Logo from '../common/Logo';
 
 const NAV_ITEMS = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -73,7 +74,7 @@ export default function AdminLayout() {
       <aside className={`admin-sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1.5rem', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.5rem' }}>🛡️</span>
+            <Logo size={32} variant="white" />
             <span style={{ fontWeight: 800, fontSize: '1.25rem', letterSpacing: '-0.025em', background: 'linear-gradient(to right, var(--color-accent-400), #ffffff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               LafiaPay Admin
             </span>

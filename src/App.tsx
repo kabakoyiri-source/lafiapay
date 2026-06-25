@@ -4,11 +4,12 @@
 // ============================================================================
 
 import { useEffect } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
+import { mockStore } from './lib/mockData';
 
 // Client Space
 import ClientLayout from './components/client/ClientLayout';
@@ -47,11 +48,12 @@ import AgentProfile from './components/agent/ProfilePage';
 export default function App() {
   const { user, profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // Auto-redirect after login based on role
   useEffect(() => {
     if (!loading && user && profile) {
-      const currentPath = window.location.pathname;
+      const currentPath = location.pathname;
       if (currentPath === '/' || currentPath === '/register') {
         const routes: Record<string, string> = {
           client: '/client',
@@ -62,7 +64,17 @@ export default function App() {
         navigate(routes[profile.role] || '/client', { replace: true });
       }
     }
-  }, [user, profile, loading, navigate]);
+  }, [user, profile, loading, navigate, location.pathname]);
+
+  // Auto-sync with Supabase on route changes
+  useEffect(() => {
+    if (user && profile && !loading) {
+      const isMockMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_URL === 'your-supabase-project-url';
+      if (!isMockMode) {
+        mockStore.syncWithSupabase();
+      }
+    }
+  }, [location.pathname, user, profile, loading]);
 
   return (
     <Routes>

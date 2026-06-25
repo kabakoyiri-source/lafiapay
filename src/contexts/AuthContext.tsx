@@ -82,6 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         commercant = commData;
       }
 
+      // 4. Sync store with Supabase
+      await mockStore.syncWithSupabase();
+
       localStorage.setItem('lafiapay-user-id', userId);
       setState({
         user: { id: userId },

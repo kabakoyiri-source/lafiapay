@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Phone, Lock, Mail, Eye, EyeOff, Wallet, Shield, Zap, User, Store, Settings, UserCheck } from 'lucide-react';
+import Logo from '../common/Logo';
 import { useAuth } from '../../contexts/AuthContext';
 import { useToast } from '../../contexts/ToastContext';
 import { generateOTP, verifyOTP, getDemoOTPCode } from '../../lib/otpService';
@@ -241,7 +242,7 @@ export default function LoginPage() {
               overflow: 'hidden',
             }}
           >
-            <img src="/logo.png" alt="LafiaPay Logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <Logo size={70} />
           </motion.div>
           <motion.h1
             initial={{ opacity: 0 }}

@@ -718,6 +718,57 @@ export const mockStore: MockDataStore = {
     return newProfile;
   },
 
+  async syncWithSupabase() {
+    if (IS_MOCK_MODE) return;
+    try {
+      // 1. Profiles
+      const { data: profiles } = await supabase.from('profiles').select('*');
+      if (profiles) {
+        this.profiles = profiles;
+      }
+      
+      // 2. Commercants
+      const { data: commercants } = await supabase.from('commercants').select('*');
+      if (commercants) {
+        this.commercants = commercants;
+      }
+
+      // 3. Comptes (balances)
+      const { data: comptes } = await supabase.from('comptes').select('*');
+      if (comptes) {
+        this.comptes = comptes;
+      }
+
+      // 4. Transactions
+      const { data: txns } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
+      if (txns) {
+        this.transactions = txns.map(tx => ({
+          ...tx,
+          client_nom: this.profiles.find(p => p.id === tx.client_id)?.nom,
+          commercant_nom: tx.commercant_id ? this.profiles.find(p => p.id === tx.commercant_id)?.nom : undefined,
+          commercant_boutique: tx.commercant_id ? this.commercants.find(m => m.id === tx.commercant_id)?.nom_boutique : undefined,
+          commercant_categorie: tx.commercant_id ? this.commercants.find(m => m.id === tx.commercant_id)?.categorie : undefined,
+        }));
+      }
+
+      // 5. Litiges
+      const { data: disputes } = await supabase.from('litiges').select('*');
+      if (disputes) {
+        this.litiges = disputes.map(d => ({
+          ...d,
+          declarant_nom: this.profiles.find(p => p.id === d.declarant_id)?.nom,
+          transaction_montant: this.transactions.find(t => t.id === d.transaction_id)?.montant,
+          transaction_reference: this.transactions.find(t => t.id === d.transaction_id)?.reference,
+        }));
+      }
+
+      this.listeners.forEach(l => l());
+      console.info('⚡ LafiaPay — Supabase sync completed!');
+    } catch (err) {
+      console.error('Failed to sync with Supabase:', err);
+    }
+  },
+
   resetStore() {
     // Clear localStorage and reload fresh data
     import('./persistedStore').then(({ clearPersistedData }) => {
@@ -729,57 +780,7 @@ export const mockStore: MockDataStore = {
 
 // If Supabase is connected, load data from Supabase asynchronously
 if (!IS_MOCK_MODE) {
-  const loadSupabaseData = async () => {
-    try {
-      // 1. Profiles
-      const { data: profiles } = await supabase.from('profiles').select('*');
-      if (profiles) {
-        mockStore.profiles = profiles;
-      }
-      
-      // 2. Commercants
-      const { data: commercants } = await supabase.from('commercants').select('*');
-      if (commercants) {
-        mockStore.commercants = commercants;
-      }
-
-      // 3. Comptes (balances)
-      const { data: comptes } = await supabase.from('comptes').select('*');
-      if (comptes) {
-        mockStore.comptes = comptes;
-      }
-
-      // 4. Transactions
-      const { data: txns } = await supabase.from('transactions').select('*').order('created_at', { ascending: false });
-      if (txns) {
-        mockStore.transactions = txns.map(tx => ({
-          ...tx,
-          client_nom: mockStore.profiles.find(p => p.id === tx.client_id)?.nom,
-          commercant_nom: tx.commercant_id ? mockStore.profiles.find(p => p.id === tx.commercant_id)?.nom : undefined,
-          commercant_boutique: tx.commercant_id ? mockStore.commercants.find(m => m.id === tx.commercant_id)?.nom_boutique : undefined,
-          commercant_categorie: tx.commercant_id ? mockStore.commercants.find(m => m.id === tx.commercant_id)?.categorie : undefined,
-        }));
-      }
-
-      // 5. Litiges
-      const { data: disputes } = await supabase.from('litiges').select('*');
-      if (disputes) {
-        mockStore.litiges = disputes.map(d => ({
-          ...d,
-          declarant_nom: mockStore.profiles.find(p => p.id === d.declarant_id)?.nom,
-          transaction_montant: mockStore.transactions.find(t => t.id === d.transaction_id)?.montant,
-          transaction_reference: mockStore.transactions.find(t => t.id === d.transaction_id)?.reference,
-        }));
-      }
-
-      mockStore.listeners.forEach(l => l());
-      console.info('⚡ LafiaPay — Supabase data loaded successfully!');
-    } catch (err) {
-      console.error('Failed to load data from Supabase:', err);
-    }
-  };
-
-  loadSupabaseData();
+  mockStore.syncWithSupabase();
 
   // Subscribe to realtime database changes
   supabase
