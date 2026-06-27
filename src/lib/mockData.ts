@@ -562,8 +562,14 @@ export const mockStore: MockDataStore = {
   },
 
   findProfileByPhone(phone: string): Profile | undefined {
-    const clean = phone.replace(/\s+/g, '');
-    return this.profiles.find(p => p.telephone.replace(/\s+/g, '') === clean);
+    const clean = phone.replace(/\D/g, '');
+    return this.profiles.find(p => {
+      const pClean = p.telephone.replace(/\D/g, '');
+      if (clean.length >= 8 && pClean.length >= 8) {
+        return clean.slice(-8) === pClean.slice(-8);
+      }
+      return clean === pClean;
+    });
   },
 
   getCommerçant(id: string): Commercant | undefined {
