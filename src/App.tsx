@@ -10,7 +10,6 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 import LoginPage from './components/auth/LoginPage';
 import RegisterPage from './components/auth/RegisterPage';
 import { mockStore } from './lib/mockData';
-import { IS_MOCK_MODE } from './lib/supabase';
 
 // Client Space
 import ClientLayout from './components/client/ClientLayout';
@@ -70,7 +69,8 @@ export default function App() {
   // Auto-sync with Supabase on route changes
   useEffect(() => {
     if (user && profile && !loading) {
-      if (!IS_MOCK_MODE) {
+      const isMockMode = !import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_URL === 'your-supabase-project-url';
+      if (!isMockMode) {
         mockStore.syncWithSupabase();
       }
     }
