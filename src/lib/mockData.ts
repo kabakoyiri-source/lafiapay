@@ -562,8 +562,14 @@ export const mockStore: MockDataStore = {
   },
 
   findProfileByPhone(phone: string): Profile | undefined {
-    const clean = phone.replace(/\s+/g, '');
-    return this.profiles.find(p => p.telephone.replace(/\s+/g, '') === clean);
+    const clean = phone.replace(/\D/g, '');
+    return this.profiles.find(p => {
+      const pClean = p.telephone.replace(/\D/g, '');
+      if (clean.length >= 8 && pClean.length >= 8) {
+        return clean.slice(-8) === pClean.slice(-8);
+      }
+      return clean === pClean;
+    });
   },
 
   getCommerçant(id: string): Commercant | undefined {
@@ -726,19 +732,42 @@ export const mockStore: MockDataStore = {
       // 1. Profiles
       const { data: profiles } = await supabase.from('profiles').select('*');
       if (profiles) {
-        this.profiles = profiles;
+        const demoProfs = [...clientProfiles, ...merchantProfiles, ...adminProfiles, ...agentProfiles];
+        const mergedProfiles = [...demoProfs];
+        profiles.forEach(p => {
+          if (!mergedProfiles.some(m => m.id === p.id)) {
+            mergedProfiles.push(p);
+          }
+        });
+        this.profiles = mergedProfiles;
       }
       
       // 2. Commercants
       const { data: commercants } = await supabase.from('commercants').select('*');
       if (commercants) {
-        this.commercants = commercants;
+        const mergedComms = [...merchantDetails];
+        commercants.forEach(c => {
+          if (!mergedComms.some(m => m.id === c.id)) {
+            mergedComms.push(c);
+          }
+        });
+        this.commercants = mergedComms;
       }
 
       // 3. Comptes (balances)
       const { data: comptes } = await supabase.from('comptes').select('*');
       if (comptes) {
-        this.comptes = comptes;
+        const demoComptes = buildAllComptes();
+        const mergedComptes = [...demoComptes];
+        comptes.forEach(c => {
+          const idx = mergedComptes.findIndex(m => m.profile_id === c.profile_id);
+          if (idx !== -1) {
+            mergedComptes[idx] = c;
+          } else {
+            mergedComptes.push(c);
+          }
+        });
+        this.comptes = mergedComptes;
       }
 
       // 4. Transactions

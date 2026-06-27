@@ -195,18 +195,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (role === 'client' || identifier === '+223 70 00 00 01') {
         const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 01').maybeSingle();
         if (data) return loginRealUser(data.id);
+        return loginMockUser(DEMO_CLIENT_ID);
       }
       if (role === 'commercant' || identifier === '+223 70 00 00 02') {
         const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 02').maybeSingle();
         if (data) return loginRealUser(data.id);
+        return loginMockUser(DEMO_MERCHANT_ID);
       }
       if (role === 'admin' || identifier === 'admin@demo.com') {
         const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 00').maybeSingle();
         if (data) return loginRealUser(data.id);
+        return loginMockUser(DEMO_ADMIN_ID);
       }
       if (role === 'agent' || identifier === '+223 70 00 00 03') {
         const { data } = await supabase.from('profiles').select('id').eq('telephone', '+223 70 00 00 03').maybeSingle();
         if (data) return loginRealUser(data.id);
+        return loginMockUser(DEMO_AGENT_ID);
       }
 
       // Standard credentials lookup (phone + pin)
