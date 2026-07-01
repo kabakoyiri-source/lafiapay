@@ -95,16 +95,16 @@ const agentProfiles: Profile[] = [
 // Merchant Details
 // ============================================================================
 const merchantDetails: Commercant[] = [
-  { id: DEMO_MERCHANT_ID, nom_boutique: 'Épicerie Sogoniko', categorie: 'alimentation', ville: 'Bamako', qr_code_id: 'QR-EPICERIE-SOGO', avatar_url: '' },
-  { id: 'mc-002', nom_boutique: 'Maquis Faso Kanu', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-FASO-KANU', avatar_url: '' },
-  { id: 'mc-003', nom_boutique: 'Taxi Bamako Express', categorie: 'transport', ville: 'Bamako', qr_code_id: 'QR-TAXI-BMK', avatar_url: '' },
-  { id: 'mc-004', nom_boutique: 'Salon Beauté Djouma', categorie: 'services', ville: 'Bamako', qr_code_id: 'QR-BEAUTE-DJOUMA', avatar_url: '' },
-  { id: 'mc-005', nom_boutique: 'Supermarché Lafia', categorie: 'alimentation', ville: 'Bamako', qr_code_id: 'QR-SUPER-LAFIA', avatar_url: '' },
-  { id: 'mc-006', nom_boutique: 'Couture Élégance', categorie: 'services', ville: 'Bamako', qr_code_id: 'QR-COUTURE-ELEG', avatar_url: '' },
-  { id: 'mc-007', nom_boutique: 'Fast Food Bamako City', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-FF-BMKCITY', avatar_url: '' },
-  { id: 'mc-008', nom_boutique: 'Pharmacie Santé Plus', categorie: 'sante', ville: 'Bamako', qr_code_id: 'QR-PHARMA-SP', avatar_url: '' },
-  { id: 'mc-009', nom_boutique: 'Boutique Mode Sahel', categorie: 'habillement', ville: 'Bamako', qr_code_id: 'QR-MODE-SAHEL', avatar_url: '' },
-  { id: 'mc-010', nom_boutique: 'Gargote Mama Fati', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-MAMA-FATI', avatar_url: '' },
+  { id: DEMO_MERCHANT_ID, nom_boutique: 'Épicerie Sogoniko', categorie: 'alimentation', ville: 'Bamako', qr_code_id: 'QR-EPICERIE-SOGO', avatar_url: '', adresse: 'Sogoniko, Rue 12', latitude: 12.6150, longitude: -7.9850, secteur_activite: 'Alimentation', est_agent: true },
+  { id: 'mc-002', nom_boutique: 'Maquis Faso Kanu', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-FASO-KANU', avatar_url: '', adresse: 'Faso Kanu, Avenue de l\'indépendance', latitude: 12.6280, longitude: -8.0120, secteur_activite: 'Restauration', est_agent: false },
+  { id: 'mc-003', nom_boutique: 'Taxi Bamako Express', categorie: 'transport', ville: 'Bamako', qr_code_id: 'QR-TAXI-BMK', avatar_url: '', adresse: 'Centre-ville, Bamako', latitude: 12.6390, longitude: -8.0030, secteur_activite: 'Transport', est_agent: false },
+  { id: 'mc-004', nom_boutique: 'Salon Beauté Djouma', categorie: 'services', ville: 'Bamako', qr_code_id: 'QR-BEAUTE-DJOUMA', avatar_url: '', adresse: 'Hamdallaye ACI 2000', latitude: 12.6450, longitude: -8.0250, secteur_activite: 'Services', est_agent: true },
+  { id: 'mc-005', nom_boutique: 'Supermarché Lafia', categorie: 'alimentation', ville: 'Bamako', qr_code_id: 'QR-SUPER-LAFIA', avatar_url: '', adresse: 'Niaréla, Boulevard du Peuple', latitude: 12.6510, longitude: -7.9780, secteur_activite: 'Alimentation', est_agent: false },
+  { id: 'mc-006', nom_boutique: 'Couture Élégance', categorie: 'services', ville: 'Bamako', qr_code_id: 'QR-COUTURE-ELEG', avatar_url: '', adresse: 'Djikoroni Para', latitude: 12.6320, longitude: -8.0400, secteur_activite: 'Services', est_agent: false },
+  { id: 'mc-007', nom_boutique: 'Fast Food Bamako City', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-FF-BMKCITY', avatar_url: '', adresse: 'Hippodrome', latitude: 12.6580, longitude: -8.0100, secteur_activite: 'Restauration', est_agent: false },
+  { id: 'mc-008', nom_boutique: 'Pharmacie Santé Plus', categorie: 'sante', ville: 'Bamako', qr_code_id: 'QR-PHARMA-SP', avatar_url: '', adresse: 'Badalabougou', latitude: 12.6220, longitude: -8.0200, secteur_activite: 'Santé', est_agent: false },
+  { id: 'mc-009', nom_boutique: 'Boutique Mode Sahel', categorie: 'habillement', ville: 'Bamako', qr_code_id: 'QR-MODE-SAHEL', avatar_url: '', adresse: 'Hamdallaye', latitude: 12.6410, longitude: -8.0180, secteur_activite: 'Habillement', est_agent: false },
+  { id: 'mc-010', nom_boutique: 'Gargote Mama Fati', categorie: 'restauration', ville: 'Bamako', qr_code_id: 'QR-MAMA-FATI', avatar_url: '', adresse: 'Sébénikoro', latitude: 12.6080, longitude: -7.9920, secteur_activite: 'Restauration', est_agent: false },
 ];
 
 // ============================================================================
@@ -481,6 +481,10 @@ export interface RegisterData {
   nom_boutique?: string;
   categorie?: CommerceCategory;
   ville?: string;
+  adresse?: string;
+  latitude?: number;
+  longitude?: number;
+  secteur_activite?: string;
 }
 
 export const mockStore: MockDataStore = {
@@ -657,6 +661,11 @@ export const mockStore: MockDataStore = {
         ville: data.ville || 'Bamako',
         qr_code_id: qrId,
         avatar_url: '',
+        adresse: data.adresse || '',
+        latitude: data.latitude !== undefined ? data.latitude : 12.6392,
+        longitude: data.longitude !== undefined ? data.longitude : -8.0029,
+        secteur_activite: data.secteur_activite || '',
+        est_agent: false,
       };
       this.commercants.push(newMerchant);
     }
@@ -708,7 +717,12 @@ export const mockStore: MockDataStore = {
                 nom_boutique: data.nom_boutique,
                 categorie: data.categorie || 'autre',
                 ville: data.ville || 'Bamako',
-                qr_code_id: qrId
+                qr_code_id: qrId,
+                adresse: data.adresse || '',
+                latitude: data.latitude !== undefined ? data.latitude : 12.6392,
+                longitude: data.longitude !== undefined ? data.longitude : -8.0029,
+                secteur_activite: data.secteur_activite || '',
+                est_agent: false
               });
             }
           });

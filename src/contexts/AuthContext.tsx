@@ -26,6 +26,10 @@ interface SignUpData {
   nom_boutique?: string;
   categorie?: string;
   ville?: string;
+  adresse?: string;
+  latitude?: number;
+  longitude?: number;
+  secteur_activite?: string;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -214,12 +218,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       // Standard credentials lookup (phone + pin)
-      const cleanPhone = identifier.replace(/[\s+]+/g, '');
+      const cleanPhone = identifier.replace(/\D/g, '');
       const { data: profiles } = await supabase.from('profiles').select('*');
       if (profiles) {
-        const match = profiles.find(p => 
-          p.telephone.replace(/[\s+]+/g, '') === cleanPhone && p.pin_hash === credential
-        );
+        const match = profiles.find(p => {
+          const pClean = p.telephone.replace(/\D/g, '');
+          const cleanMatch = (cleanPhone.length >= 8 && pClean.length >= 8)
+            ? pClean.slice(-8) === cleanPhone.slice(-8)
+            : pClean === cleanPhone;
+          return cleanMatch && p.pin_hash === credential;
+        });
         if (match) {
           return await loginRealUser(match.id);
         }
@@ -241,12 +249,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return false;
     } else {
       try {
-        const cleanPhone = telephone.replace(/[\s+]+/g, '');
+        const cleanPhone = telephone.replace(/\D/g, '');
         const { data: profiles } = await supabase.from('profiles').select('*');
         if (profiles) {
-          const match = profiles.find(p => 
-            p.telephone.replace(/[\s+]+/g, '') === cleanPhone && p.pin_hash === pin
-          );
+          const match = profiles.find(p => {
+            const pClean = p.telephone.replace(/\D/g, '');
+            const cleanMatch = (cleanPhone.length >= 8 && pClean.length >= 8)
+              ? pClean.slice(-8) === cleanPhone.slice(-8)
+              : pClean === cleanPhone;
+            return cleanMatch && p.pin_hash === pin;
+          });
           if (match) {
             return await loginRealUser(match.id);
           }
@@ -271,6 +283,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           nom_boutique: data.nom_boutique,
           categorie: data.categorie as CommerceCategory | undefined,
           ville: data.ville,
+          adresse: data.adresse,
+          latitude: data.latitude,
+          longitude: data.longitude,
+          secteur_activite: data.secteur_activite,
         });
         
         return loginMockUser(newProfile.id);
@@ -310,6 +326,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             categorie: data.categorie || 'autre',
             ville: data.ville || 'Bamako',
             qr_code_id: qrId,
+            adresse: data.adresse || '',
+            latitude: data.latitude !== undefined ? data.latitude : 12.6392,
+            longitude: data.longitude !== undefined ? data.longitude : -8.0029,
+            secteur_activite: data.secteur_activite || '',
+            est_agent: false,
           });
           if (commErr) throw commErr;
         }

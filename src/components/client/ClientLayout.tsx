@@ -5,7 +5,7 @@
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Home, QrCode, Clock, User, Send } from 'lucide-react';
+import { Home, QrCode, Clock, User, Send, Map } from 'lucide-react';
 
 const NAV_ITEMS = [
   { path: '/client', icon: Home, label: 'Accueil' },

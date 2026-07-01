@@ -35,6 +35,28 @@ export default function RegisterPage() {
   const [nomBoutique, setNomBoutique] = useState('');
   const [categorie, setCategorie] = useState<CommerceCategory>('alimentation');
   const [ville, setVille] = useState('Bamako');
+  const [adresse, setAdresse] = useState('');
+  const [secteurActivite, setSecteurActivite] = useState('');
+  const [latitude, setLatitude] = useState('12.6392');
+  const [longitude, setLongitude] = useState('-8.0029');
+
+  const detectPosition = () => {
+    if (!navigator.geolocation) {
+      showToast({ type: 'error', title: 'Non supporté', message: 'La géolocalisation n\'est pas supportée par votre navigateur.' });
+      return;
+    }
+    showToast({ type: 'info', title: 'Recherche GPS', message: 'Détection des coordonnées en cours...' });
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setLatitude(pos.coords.latitude.toFixed(6));
+        setLongitude(pos.coords.longitude.toFixed(6));
+        showToast({ type: 'success', title: 'Position GPS acquise ✓', message: `Lat: ${pos.coords.latitude.toFixed(4)}, Lng: ${pos.coords.longitude.toFixed(4)}` });
+      },
+      () => {
+        showToast({ type: 'error', title: 'Erreur GPS', message: 'Impossible d\'acquérir vos coordonnées.' });
+      }
+    );
+  };
 
   // Step 2 — OTP
   const [otpDigits, setOtpDigits] = useState<string[]>(['', '', '', '', '', '']);
@@ -239,6 +261,10 @@ export default function RegisterPage() {
       nom_boutique: nomBoutique || undefined,
       categorie: categorie || undefined,
       ville: ville || undefined,
+      adresse: adresse || undefined,
+      latitude: parseFloat(latitude) || undefined,
+      longitude: parseFloat(longitude) || undefined,
+      secteur_activite: secteurActivite || undefined,
     });
 
     if (success) {
@@ -494,6 +520,73 @@ export default function RegisterPage() {
                             />
                           </div>
                         </div>
+                      </div>
+
+                      <div className="input-group" style={{ marginBottom: '1rem' }}>
+                        <label className="input-label">Adresse de la boutique</label>
+                        <div style={{ position: 'relative' }}>
+                          <MapPin size={18} style={{
+                            position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+                            color: 'var(--color-surface-400)',
+                          }} />
+                          <input
+                            className="input-field"
+                            style={{ paddingLeft: '2.75rem' }}
+                            type="text"
+                            placeholder="Ex: Rue 140, Porte 25, Sogoniko"
+                            value={adresse}
+                            onChange={e => setAdresse(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="input-group" style={{ marginBottom: '1rem' }}>
+                        <label className="input-label">Secteur d'activité / Spécialité</label>
+                        <div style={{ position: 'relative' }}>
+                          <Tag size={18} style={{
+                            position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)',
+                            color: 'var(--color-surface-400)',
+                          }} />
+                          <input
+                            className="input-field"
+                            style={{ paddingLeft: '2.75rem' }}
+                            type="text"
+                            placeholder="Ex: Épicerie fine, Vente de tissus, etc."
+                            value={secteurActivite}
+                            onChange={e => setSecteurActivite(e.target.value)}
+                          />
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', alignItems: 'flex-end' }}>
+                        <div className="input-group" style={{ flex: 1 }}>
+                          <label className="input-label">Latitude</label>
+                          <input
+                            className="input-field"
+                            type="number"
+                            step="any"
+                            value={latitude}
+                            onChange={e => setLatitude(e.target.value)}
+                          />
+                        </div>
+                        <div className="input-group" style={{ flex: 1 }}>
+                          <label className="input-label">Longitude</label>
+                          <input
+                            className="input-field"
+                            type="number"
+                            step="any"
+                            value={longitude}
+                            onChange={e => setLongitude(e.target.value)}
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={detectPosition}
+                          style={{ height: '42px', padding: '0 0.75rem', fontSize: '0.75rem', fontWeight: 700 }}
+                        >
+                          GPS
+                        </button>
                       </div>
                     </motion.div>
                   )}

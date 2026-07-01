@@ -87,7 +87,11 @@ export default function PaymentPage() {
       return;
     }
 
-    const commission = Math.round(montant * 0.005);
+    const isMerchantSender = profile?.role === 'commercant';
+    const commissionTotal = isMerchantSender ? 0 : Math.round(montant * 0.005);
+    const lafiapayFee = isMerchantSender ? 0 : Math.round(commissionTotal * 0.75); // 25% given back to merchant
+    const merchantReceived = montant - lafiapayFee;
+
     const txn: Transaction = {
       id: `txn-${Date.now()}`,
       type: 'paiement',
@@ -95,8 +99,8 @@ export default function PaymentPage() {
       commercant_id: merchant!.id,
       montant,
       montant_brut: montant,
-      montant_net: montant - commission,
-      frais: commission,
+      montant_net: merchantReceived,
+      frais: lafiapayFee,
       statut: 'reussie',
       operateur_mobile_money: null,
       reference: generateReference(),
@@ -109,9 +113,9 @@ export default function PaymentPage() {
 
     mockStore.addTransaction(txn);
     updateBalance(-montant);
-    mockStore.updateBalance(merchant!.id, montant - commission);
+    mockStore.updateBalance(merchant!.id, merchantReceived);
     setStep('success');
-    showToast({ type: 'success', title: 'Paiement envoyé !', message: `${formatFCFA(montant)} à ${merchant!.nom_boutique} (dont ${formatFCFA(commission)} de frais commerçant)` });
+    showToast({ type: 'success', title: 'Paiement envoyé !', message: `${formatFCFA(montant)} à ${merchant!.nom_boutique} ${isMerchantSender ? '(sans frais)' : `(dont ${formatFCFA(commissionTotal - lafiapayFee)} reversé en commission)`}` });
   };
 
   return (

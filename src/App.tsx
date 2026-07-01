@@ -20,6 +20,7 @@ import ClientPayment from './components/client/PaymentPage';
 import ClientTransfer from './components/client/TransferPage';
 import ClientHistory from './components/client/HistoryPage';
 import ClientProfile from './components/client/ProfilePage';
+import ClientMap from './components/client/MerchantMapPage';
 
 // Merchant Space
 import MerchantLayout from './components/merchant/MerchantLayout';
@@ -123,6 +124,7 @@ export default function App() {
         </ProtectedRoute>
       }>
         <Route index element={<AdminDashboard />} />
+        <Route path="map" element={<ClientMap />} />
         <Route path="users" element={<AdminUsers />} />
         <Route path="merchants" element={<AdminMerchants />} />
         <Route path="transactions" element={<AdminTransactions />} />

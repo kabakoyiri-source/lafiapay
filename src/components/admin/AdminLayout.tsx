@@ -20,6 +20,7 @@ import {
   X,
   Sun,
   Moon,
+  Map,
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -27,6 +28,7 @@ import Logo from '../common/Logo';
 
 const NAV_ITEMS = [
   { path: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+  { path: '/admin/map', icon: Map, label: 'Carte Commerçants' },
   { path: '/admin/users', icon: Users, label: 'Clients' },
   { path: '/admin/merchants', icon: Store, label: 'Commerçants' },
   { path: '/admin/transactions', icon: Receipt, label: 'Transactions' },
@@ -129,7 +131,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div className="admin-main-wrapper" style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header */}
         <header
           style={{

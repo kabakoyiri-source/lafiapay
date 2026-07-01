@@ -139,6 +139,14 @@ body {
 
 /* Dark mode */
 body.dark {
+  --color-surface-50: var(--color-dark-bg);
+  --color-surface-100: var(--color-dark-surface);
+  --color-surface-200: var(--color-dark-border);
+  --color-surface-300: #334155;
+  --color-surface-500: var(--color-dark-text-muted);
+  --color-surface-800: var(--color-dark-text);
+  --color-surface-900: #ffffff;
+
   background-color: var(--color-dark-bg);
   color: var(--color-dark-text);
 }
@@ -632,23 +640,29 @@ body.dark .bottom-nav-item.active .nav-icon-bg {
   font-weight: 600;
 }
 
-.admin-content {
+.admin-main-wrapper {
   margin-left: 260px;
   min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.admin-content {
   padding: 1.5rem 2rem;
 }
 
 @media (max-width: 1024px) {
+  .admin-main-wrapper {
+    margin-left: 0;
+  }
+
   .admin-sidebar {
     transform: translateX(-100%);
   }
 
   .admin-sidebar.open {
     transform: translateX(0);
-  }
-
-  .admin-content {
-    margin-left: 0;
   }
 }
 

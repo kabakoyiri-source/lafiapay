@@ -62,6 +62,11 @@ export interface Commercant {
   ville: string;
   qr_code_id: string;
   avatar_url?: string;
+  adresse?: string;
+  latitude?: number;
+  longitude?: number;
+  secteur_activite?: string;
+  est_agent?: boolean;
 }
 
 /** Account / balance record */
