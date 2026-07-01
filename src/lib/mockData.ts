@@ -790,6 +790,7 @@ export const mockStore: MockDataStore = {
         this.transactions = txns.map(tx => ({
           ...tx,
           client_nom: this.profiles.find(p => p.id === tx.client_id)?.nom,
+          destinataire_nom: tx.destinataire_id ? this.profiles.find(p => p.id === tx.destinataire_id)?.nom : undefined,
           commercant_nom: tx.commercant_id ? this.profiles.find(p => p.id === tx.commercant_id)?.nom : undefined,
           commercant_boutique: tx.commercant_id ? this.commercants.find(m => m.id === tx.commercant_id)?.nom_boutique : undefined,
           commercant_categorie: tx.commercant_id ? this.commercants.find(m => m.id === tx.commercant_id)?.categorie : undefined,

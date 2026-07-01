@@ -3,7 +3,7 @@
 // Dynamic analytics dashboard featuring KPIs and interactive charts
 // ============================================================================
 
-import { useMemo } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   ResponsiveContainer,
   AreaChart,
@@ -24,6 +24,11 @@ import { mockStore } from '../../lib/mockData';
 import { formatFCFA, CATEGORY_INFO } from '../../types';
 
 export default function DashboardPage() {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    return mockStore.subscribe(() => setTick(t => t + 1));
+  }, []);
+
   // Compute analytics dynamically from mockStore
   const stats = useMemo(() => {
     const txns = mockStore.transactions;
@@ -52,7 +57,7 @@ export default function DashboardPage() {
       totalTxnsCount: txns.length,
       successRate: (successfulTxns.length / txns.length) * 100,
     };
-  }, []);
+  }, [mockStore.transactions, mockStore.profiles]);
 
   // 1. Chart: 30-day transaction volume trend
   const volumeData = useMemo(() => {
@@ -83,7 +88,7 @@ export default function DashboardPage() {
     });
 
     return Object.values(dailyMap);
-  }, []);
+  }, [mockStore.transactions]);
 
   // 2. Chart: Top 5 Merchants by sales volume
   const topMerchantsData = useMemo(() => {
@@ -101,7 +106,7 @@ export default function DashboardPage() {
     return Object.values(merchantMap)
       .sort((a, b) => b.volume - a.volume)
       .slice(0, 5);
-  }, []);
+  }, [mockStore.transactions]);
 
   // 3. Chart: Distribution of transaction volume by Category
   const categoryData = useMemo(() => {
@@ -121,7 +126,7 @@ export default function DashboardPage() {
         color: info.color,
       };
     });
-  }, []);
+  }, [mockStore.transactions]);
 
   const COLORS = ['#8B5CF6', '#F59E0B', '#10B981', '#EF4444', '#3B82F6', '#EC4899', '#6B7280'];
 
